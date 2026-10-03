@@ -20,6 +20,7 @@ require("modules.monitors")
 require("modules.appearance")
 require("modules.animations")
 require("modules.input")
+require("modules.workspaces")
 require("modules.keybinds")
 
 ---------------------

@@ -2,6 +2,10 @@
 ---- KEYBINDINGS ----
 --------------------
 
+local terminal = "kitty"
+local fileManager = "dolphin"
+local menu = "hyprlauncher"
+
 local mainMod = "SUPER"
 
 -- Application and general actions
@@ -136,4 +140,36 @@ hl.bind(
     "XF86AudioPrev",
     hl.dsp.exec_cmd("playerctl previous"),
     { locked = true }
+)
+
+----------------------------
+---- WORKSPACE GRAPH -------
+----------------------------
+
+hl.bind(
+    "SUPER + ALT + left",
+    function()
+        WorkspaceGraph.navigate("left")
+    end
+)
+
+hl.bind(
+    "SUPER + ALT + right",
+    function()
+        WorkspaceGraph.navigate("right")
+    end
+)
+
+hl.bind(
+    "SUPER + ALT + up",
+    function()
+        WorkspaceGraph.navigate("up")
+    end
+)
+
+hl.bind(
+    "SUPER + ALT + down",
+    function()
+        WorkspaceGraph.navigate("down")
+    end
 )
