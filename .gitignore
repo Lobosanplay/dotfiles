@@ -1,0 +1,23 @@
+# Secrets / credentials
+*.key
+*.pem
+*.token
+.env
+.env.*
+
+# Runtime / temporary files
+*.log
+*.tmp
+*.cache
+
+# Local machine-specific files
+local/
+private/
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
