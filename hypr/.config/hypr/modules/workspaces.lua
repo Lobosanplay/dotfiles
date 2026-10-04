@@ -215,6 +215,54 @@ local function connect(from, direction, to)
 end
 
 --------------------------------------------------
+-- REMOVAL
+--------------------------------------------------
+
+local straight_axes = {
+    { "left", "right" },
+    { "up", "down" },
+}
+
+-- Removes a workspace from the graph. Its neighbors lose the connection
+-- to it, and two neighbors it joined in a straight line (left-right or
+-- up-down) are connected to each other when both sides are free.
+local function remove(id)
+    local node = workspaces[id]
+
+    if not node then
+        return false
+    end
+
+    for direction, target in pairs(node) do
+        local neighbor = workspaces[target]
+        local opposite = opposite_direction[direction]
+
+        if neighbor and neighbor[opposite] == id then
+            neighbor[opposite] = nil
+        end
+    end
+
+    workspaces[id] = nil
+
+    for _, axis in ipairs(straight_axes) do
+        local first = node[axis[1]]
+        local second = node[axis[2]]
+
+        if first and second and first ~= second
+            and workspaces[first] and workspaces[second]
+            and not workspaces[first][axis[2]]
+            and not workspaces[second][axis[1]] then
+            workspaces[first][axis[2]] = second
+            workspaces[second][axis[1]] = first
+        end
+    end
+
+    save_graph()
+
+    return true
+end
+
+--------------------------------------------------
 -- HYPRLAND ACTIONS
 --------------------------------------------------
 
@@ -286,6 +334,50 @@ for _, workspace in ipairs(hl.get_workspaces()) do
 end
 
 --------------------------------------------------
+-- AUTOMATIC REMOVAL
+--------------------------------------------------
+
+-- Hyprland destroys a workspace when it is left empty; its graph node
+-- goes with it. The event only carries the expired workspace, so removed
+-- ids are found by comparing with the workspaces that were alive before.
+local alive = {}
+local snapshot_timer = nil
+
+local function alive_workspace_ids()
+    local ids = {}
+
+    for _, workspace in ipairs(hl.get_workspaces()) do
+        if workspace.id and workspace.id > 0 then
+            ids[workspace.id] = true
+        end
+    end
+
+    return ids
+end
+
+hl.on("workspace.created", function()
+    -- The new workspace is listed only after the event; take the snapshot
+    -- on the next loop iteration.
+    snapshot_timer = hl.timer(function()
+        alive = alive_workspace_ids()
+    end, { timeout = 1, type = "oneshot" })
+end)
+
+hl.on("workspace.removed", function()
+    local now = alive_workspace_ids()
+
+    for id in pairs(alive) do
+        if not now[id] and workspaces[id] then
+            remove(id)
+        end
+    end
+
+    alive = now
+end)
+
+alive = alive_workspace_ids()
+
+--------------------------------------------------
 -- PUBLIC API
 --------------------------------------------------
 
@@ -293,6 +385,7 @@ WorkspaceGraph = {
     navigate = navigate,
     activate = activate,
     connect = connect,
+    remove = remove,
     get_active_workspace = get_active_workspace,
 
     get_workspaces = function()
