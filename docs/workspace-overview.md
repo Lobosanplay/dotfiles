@@ -6,18 +6,21 @@ las decisiones tomadas y las opciones para los siguientes pasos.
 ## Arquitectura
 
 ```text
-Hyprland (Lua)                          DMS / Quickshell (QML)
-──────────────                          ──────────────────────
-hypr/.../modules/workspaces.lua         dms/overrides/.../HyprlandOverview.qml
-  · grafo left/right/up/down              · lee workspace-graph.json (FileView)
-  · navigate / activate / connect         · una sola superficie, monitor con foco
-  · remove + borrado automático           · teclas: ←↑→↓ selección, ENTER, ESC
-  · guarda ~/.local/state/hyprland/     dms/overrides/.../OverviewWidget.qml
-    workspace-graph.json  ───────────▶    · layout de grafo + escalado
-hypr/.../modules/keybinds.lua             · líneas, miniaturas reales (DMS)
-  · SUPER+ALT+flechas → navigate          · números pequeños, cuadros vacíos
-hypr/.../modules/dms.lua                scripts/dms-overlay.sh + systemd drop-in
-  · SUPER+TAB → overview de DMS           · overlay = paquete DMS + 2 overrides
+Hyprland (Lua, autoridad del estado)    DMS / Quickshell (QML, presentación)
+────────────────────────────────────    ────────────────────────────────────
+modules/workspaces.lua                  dms/overrides/.../HyprlandOverview.qml
+  · WorkspaceGraph: grafo, navegación,    · FileView del grafo y de los metadatos
+    edición, borrado automático           · una superficie en el monitor con foco
+  · workspace-graph.json  ─────────────▶  · teclado, offsets de arrastre (memoria)
+modules/workspace_metadata.lua          dms/overrides/.../OverviewWidget.qml
+  · WorkspaceMetadata: nombres, iconos    · miniaturas reales de DMS, líneas
+  · workspace-metadata.json  ──────────▶  · selección, arrastre, cámara (zoom/pan)
+modules/dms.lua                         dms/overrides/.../GraphLayout.js
+  · WorkspaceOverview: órdenes del        · layout puro (probado en tests/layout)
+    overview ◀──── Lua dispatch ────────
+  · SUPER+TAB → overview                scripts/dms-overlay.sh + drop-in systemd
+modules/keybinds.lua                      · overlay = paquete DMS + 3 overrides
+  · SUPER+ALT+flechas → navigate          · fallback al DMS normal si DMS cambia
 ```
 
 Archivos:
@@ -27,12 +30,17 @@ Archivos:
 | `hypr/.config/hypr/modules/workspaces.lua` | Modelo del grafo, navegación, persistencia y borrado automático |
 | `hypr/.config/hypr/modules/keybinds.lua` | Atajos propios, incluidos `SUPER + ALT + flechas` |
 | `hypr/.config/hypr/modules/dms.lua` | Integración con DMS: colores, reglas de capas y atajos que no chocan |
-| `dms/overrides/Modules/WorkspaceOverlays/*.qml` | Copias modificadas del overview de DMS 1.6.2 (cambios marcados con `dotfiles:`) |
-| `dms/overrides/**/*.upstream-sha256` | Huella del archivo original de DMS del que parte cada copia |
-| `scripts/dms-overlay.sh` | Genera `~/.local/share/dms-overlay/` (enlaces al paquete + copias propias) |
-| `systemd/.config/systemd/user/dms.service.d/overlay.conf` | Arranca DMS desde la overlay; si falla, usa el DMS normal |
+| `hypr/.config/hypr/modules/workspace_metadata.lua` | Nombres e iconos por workspace (`WorkspaceMetadata`) |
+| `dms/overrides/Modules/WorkspaceOverlays/*.qml` | Copias modificadas del overview de DMS (cambios marcados con `dotfiles:`) |
+| `dms/overrides/Modules/WorkspaceOverlays/GraphLayout.js` | Layout del grafo y escala, sin dependencias de QML |
+| `dms/overrides/**/*.upstream` | Copia exacta del archivo de DMS del que parte cada override |
+| `dms/overrides/UPSTREAM_VERSION` | Versión de DMS contra la que se revisaron los overrides |
+| `scripts/dms-overlay.sh` | Genera `~/.local/share/dms-overlay/` (enlaces al paquete + copias propias); `--check`, `--update-base` |
+| `systemd/.config/systemd/user/dms.service.d/overlay.conf` | Arranca DMS desde la overlay; si no se construye, usa el DMS normal |
+| `tests/layout/*.test.js` | Tests del layout: `node --test 'tests/layout/*.test.js'` |
 
-Estado del grafo: `~/.local/state/hyprland/workspace-graph.json`.
+Estado: `~/.local/state/hyprland/workspace-graph.json` (grafo) y
+`~/.local/state/hyprland/workspace-metadata.json` (nombres e iconos).
 
 ### API de `WorkspaceGraph` (Lua)
 
@@ -81,9 +89,116 @@ overview a través del JSON, que vigila con `FileView`.
 | `SUPER + CTRL + flecha` (en el overview) | Quitar la conexión del seleccionado en esa dirección |
 | `N` (en el overview) | Crear un workspace (virtual) y seleccionarlo |
 | `X` (en el overview) | Borrar el workspace seleccionado (solo si es virtual) |
+| `R` / `I` (en el overview) | Cambiar el nombre / el icono del seleccionado (`ENTER` guarda, `ESC` cancela, vacío borra) |
+| Arrastrar un workspace (en el overview) | Moverlo en pantalla (solo visual, ver abajo) |
+| Rueda / `+` `-` (en el overview) | Zoom (la rueda, centrada en el cursor) |
+| Botón central arrastrando (en el overview) | Desplazar la vista |
+| `0` (en el overview) | Volver a la vista ajustada |
 | `SUPER + ALT + flechas` | Navegar por el grafo; crea un workspace si no hay conexión en esa dirección (teclado 60 %: Fn primero) |
 | `SUPER + F` | Maximizar / restaurar la ventana |
 | `SUPER + ALT + X` | Salir de Hyprland |
+
+## Overview: interacción y presentación
+
+### Drag & drop
+
+Arrastrar un workspace **solo cambia su posición en pantalla**: el grafo y su
+JSON no cambian. Los desplazamientos (en celdas) viven en memoria en el
+`Scope` de `HyprlandOverview.qml`, así que se conservan al cerrar y reabrir el
+overview y se pierden al reiniciar DMS. Al pulsar se selecciona; soltar tras
+moverse menos que `Qt.styleHints.startDragDistance` es un clic (activa). Al
+soltar, el workspace encaja en la celda más cercana; si está ocupada, vuelve
+a su sitio. Las flechas navegan por las posiciones que se ven. Arrastrar una
+miniatura de ventana sigue moviendo la ventana a otro workspace (DMS).
+
+### Zoom y pan
+
+Una cámara (zoom, x, y) aplicada como transformación `Scale` + `Translate` a
+las capas del overview: el layout no se recalcula y miniaturas, líneas y
+etiquetas se escalan juntas. Zoom entre 0,5× y 4×; siempre queda parte del
+grafo dentro del panel y la cámara se desplaza para mostrar la selección.
+Cada apertura empieza con la vista ajustada. La rueda y el pan usan
+`MouseArea`: los *pointer handlers* (`WheelHandler`, `DragHandler`) no reciben
+eventos en esta superficie.
+
+### Nombres e iconos
+
+`WorkspaceMetadata` (Lua) guarda un nombre y un icono opcionales por nodo del
+grafo, en un archivo aparte para no tocar la validación ni el formato del
+grafo. Nombres: hasta 32 bytes, sin comillas, barras invertidas ni
+caracteres de control. Iconos: nombres de Material Symbols (`[a-z0-9_]`), la
+fuente que trae DMS. Al borrarse un nodo (`WorkspaceGraph.on_removed`) se
+borra su metadato, así un id reutilizado no hereda un nombre. Se muestran en
+pequeño junto al número, fuera de la miniatura.
+
+| Función | Descripción |
+|---|---|
+| `WorkspaceMetadata.get(id)` | Copia de `{name, icon}` o `nil` |
+| `WorkspaceMetadata.set_name(id, name)` | Vacío o `nil` borra; devuelve `ok, error` |
+| `WorkspaceMetadata.set_icon(id, icon)` | Ídem para el icono |
+| `WorkspaceMetadata.clear(id)` | Borra los dos |
+
+### Animaciones
+
+Cortas, con `Theme.shortDuration` y `Theme.standardEasing` de DMS (siguen la
+velocidad de animación configurada en DMS): el borde de la selección, los
+movimientos de cámara con teclado (la rueda y el pan son inmediatos) y la
+barra de edición. La apertura y el cierre los anima DMS. No se animan las
+miniaturas ni los cambios de layout: las ventanas se colocan con valores
+calculados y se separarían de sus celdas.
+
+### Layout
+
+BFS desde el workspace activo sobre una cuadrícula: cada vecino va a la
+celda de su dirección. Si está ocupada, `chooseCell` puntúa candidatas (más
+lejos en la misma línea, desplazadas a un lado y el anillo alrededor) por el
+coste de todas las líneas hacia vecinos ya colocados: lado incorrecto (500),
+cruces (100), línea sobre otro workspace (60), diagonal (25) y longitud (1).
+Los componentes desconectados van al lado que deja la escala mayor; luego
+`fitScale` ajusta todo a la pantalla y el activo se centra si cabe.
+Determinista: sin aleatoriedad y con ids y direcciones en orden.
+
+Se descartaron *force-directed* (pierde la semántica de las direcciones y no
+es determinista), routing ortogonal (no evita los choques de nodos) y
+Sugiyama (pensado para jerarquías).
+
+### Tests
+
+`node --test 'tests/layout/*.test.js'` (sin sesión gráfica; carga el
+`GraphLayout.js` real con `vm`):
+
+- casos fijos (uno, dos, vertical, cruz, dos componentes, cadena de 50,
+  ciclo, regresión de colisión), con cada workspace como activo y viewports
+  1920×1080, 2560×1440, 3840×2160 y 1600×900: posiciones finitas, únicas y
+  acotadas; activo en (0, 0); determinismo (también con otro orden del
+  JSON); vecinos cerca y en su lado; componentes sin solaparse; el grafo
+  cabe en pantalla con `fitScale`;
+- calidad en 300 grafos generados con semilla fija: límites de relaciones en
+  el lado incorrecto, cruces, líneas sobre workspaces y solapes.
+
+## Mantenimiento frente a actualizaciones de DMS
+
+Cada override de un archivo de DMS lleva junto a él `<archivo>.upstream`,
+copia exacta del original del que parte, y `dms/overrides/UPSTREAM_VERSION`
+indica la versión de DMS revisada. En cada arranque de DMS,
+`dms-overlay.sh` compara esas copias con el DMS instalado:
+
+- **sin cambios:** construye la overlay y DMS la usa;
+- **algún original cambió:** no construye la overlay (los overrides dependen
+  entre sí), avisa en el journal y con una notificación de Hyprland qué
+  archivo cambió, y sale con 3; el servicio arranca el DMS normal. Las copias
+  de `dms/overrides` nunca se modifican y no hay reintentos.
+
+Procedimiento tras actualizar DMS:
+
+1. `scripts/dms-overlay.sh --check`: lista los archivos que cambiaron y
+   muestra el diff de DMS (base → versión instalada).
+2. Llevar esos cambios a la copia propia (los cambios propios están marcados
+   con `dotfiles:`), por ejemplo aplicando el diff mostrado.
+3. `scripts/dms-overlay.sh --update-base Modules/WorkspaceOverlays/<archivo>`
+   por cada archivo revisado.
+4. `systemctl --user restart dms.service` y comprobar el overview.
+5. `node --test 'tests/layout/*.test.js'` si se tocó el layout.
 
 ## Cronología
 
@@ -100,6 +215,14 @@ overview a través del JSON, que vigila con `FileView`.
 | `2dcc2dd` | Borrado automático de workspaces vacíos del grafo, con reconexión en línea recta |
 | `23687ec` | Arreglo: el layout ya no salta al abrir (el grafo se carga antes) |
 | `788e6f1` | Arreglo: el clic cierra el overview (bug del propio DMS) |
+| `7764028` | API de edición de `WorkspaceGraph`, validación y guardado atómico |
+| `d84e9e4` | Edición del grafo desde el overview |
+| `4d2c5ad` | Arrastrar workspaces |
+| `7c4005a` | Zoom y pan |
+| `d802637` / `b93a56a` | Nombres e iconos |
+| `6d3733b` | Animaciones |
+| `7c4948a` / `7d0509b` | Layout en módulo puro y resolución de colisiones |
+| `2d33135` / `e1791a9` | `fitScale` en el módulo y tests del layout |
 
 ## Decisiones
 
@@ -111,9 +234,9 @@ overview a través del JSON, que vigila con `FileView`.
    hyprlang, hyprgraphics y hyprcursor sin cabeceras; un plugin compilado
    contra otras versiones cierra el compositor.
 3. **Copias mínimas sin tocar `/usr/share`.** La overlay de enlaces se
-   regenera en cada arranque de DMS. Solo hay 2 archivos propios, con la huella
-   del original; el script avisa en el journal (*"changed upstream"*) si DMS
-   cambia ese original. Si la overlay falla, DMS arranca su versión normal.
+   regenera en cada arranque de DMS con 3 archivos propios (2 copias de DMS y
+   `GraphLayout.js`). Si DMS cambia uno de los originales, se usa el DMS
+   normal hasta revisar (ver Mantenimiento).
 4. **Una sola superficie del overview** en el monitor con foco. Con una por
    monitor, el teclado acababa en la superficie equivocada.
 5. **Navegación:** primero las conexiones del grafo; si no hay ninguna en esa
@@ -133,10 +256,15 @@ overview a través del JSON, que vigila con `FileView`.
 
 ## Limitaciones conocidas
 
-- Si dos caminos del grafo apuntan a la misma celda, uno se coloca en el hueco
-  libre más cercano y su línea sale en diagonal.
-- Grafos grandes: las miniaturas se encogen para que todo quepa; no hay
-  desplazamiento ni zoom.
+- Si dos caminos del grafo apuntan a la misma celda, uno queda en diagonal
+  (en el lado correcto de su conexión); en ciclos puede quedar alguna línea
+  sobre otro workspace.
+- Los desplazamientos de arrastre no se guardan entre reinicios de DMS.
+- Para arrastrar un workspace hay que agarrarlo por una zona sin ventana; el
+  clic central sobre una miniatura cierra la ventana en lugar de desplazar.
+- Con zoom alto las miniaturas se ven borrosas (se escala su textura).
+- Tras actualizar DMS, el overview del grafo queda desactivado hasta revisar
+  los overrides (ver Mantenimiento).
 - El activo no siempre queda en el centro exacto: se prioriza que el grafo
   quepa grande.
 - Para mantener una estructura hay que tener ventanas en ella, porque los
@@ -149,20 +277,8 @@ overview a través del JSON, que vigila con `FileView`.
 
 ## Siguientes pasos
 
-**A. Editar el grafo desde el overview** (hecho con teclado: conectar,
-desconectar, crear y borrar). Pendiente: arrastrar con el ratón.
-
-**B. Mejorar el layout**
-- Evitar líneas en diagonal recolocando los componentes que chocan.
-- Zoom o desplazamiento para grafos grandes, y centrado exacto en el activo.
-
-**C. Experiencia visual**
-- Animaciones de apertura y de selección (DMS ya trae curvas y duraciones).
-- Nombres de workspace con el renombrado de DMS (`CTRL + SHIFT + R` quedó
-  fuera porque choca con los navegadores).
-- Iconos de las apps.
-
-**D. Robustez**
-- Pruebas automáticas del layout en JS y un script que compare las copias con
-  DMS tras cada actualización.
+- Guardar los desplazamientos de arrastre (requiere decidir si son estado
+  visual persistente aparte del grafo).
+- Arrastrar workspaces con ventanas desde cualquier punto (p. ej. con un
+  modificador).
 - Guardar en el grafo en qué monitor está cada workspace.
