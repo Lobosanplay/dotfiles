@@ -391,6 +391,9 @@ end
 -- REMOVAL
 --------------------------------------------------
 
+-- Functions called with the id of every node removed from the graph.
+local removed_listeners = {}
+
 local straight_axes = {
     { "left", "right" },
     { "up", "down" },
@@ -431,6 +434,10 @@ local function remove_node(id)
     end
 
     save_graph()
+
+    for _, listener in ipairs(removed_listeners) do
+        listener(id)
+    end
 
     return true
 end
@@ -626,6 +633,11 @@ WorkspaceGraph = {
     -- The live table; read it, change it only through the functions above.
     get_workspaces = function()
         return workspaces
+    end,
+
+    -- Calls fn(id) after a node is removed (manually or automatically).
+    on_removed = function(fn)
+        table.insert(removed_listeners, fn)
     end,
 
     -- Returns ok, problems: the invariant violations found (none expected).
