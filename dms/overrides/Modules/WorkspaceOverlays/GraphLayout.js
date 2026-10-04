@@ -250,3 +250,20 @@ function layoutGraph(nodes, center, aspect, cellAspect, gapRatio, componentGap, 
 
     return positions;
 }
+
+// Uniform scale that fits every position on screen: cells of
+// cellWidth x cellHeight (logical px at scale 1), spaced by gapRatio,
+// inside availableWidth x availableHeight, at most maxScale. Returns null
+// when there is nothing to lay out.
+function fitScale(positions, availableWidth, availableHeight, cellWidth, cellHeight, gapRatio, maxScale) {
+    const points = Object.values(positions);
+    if (points.length === 0)
+        return null;
+
+    const spanX = Math.max(...points.map(p => p[0])) - Math.min(...points.map(p => p[0]));
+    const spanY = Math.max(...points.map(p => p[1])) - Math.min(...points.map(p => p[1]));
+    const neededW = (spanX * (1 + gapRatio) + 1) * cellWidth + 20;
+    const neededH = (spanY * (1 + gapRatio) + 1) * cellHeight + 20;
+
+    return Math.min(maxScale, availableWidth / neededW, availableHeight / neededH);
+}

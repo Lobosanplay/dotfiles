@@ -521,18 +521,7 @@ Item {
 
     property bool monitorIsFocused: monitor?.focused ?? false
     // dotfiles: one uniform scale that fits the whole graph on screen.
-    property real scale: {
-        const points = Object.values(effectivePositions);
-        if (points.length === 0)
-            return SettingsData.overviewScale;
-
-        const spanX = Math.max(...points.map(p => p[0])) - Math.min(...points.map(p => p[0]));
-        const spanY = Math.max(...points.map(p => p[1])) - Math.min(...points.map(p => p[1]));
-        const neededW = (spanX * (1 + graphGapRatio) + 1) * maxCellLogical.width + 20;
-        const neededH = (spanY * (1 + graphGapRatio) + 1) * maxCellLogical.height + 20;
-
-        return Math.min(maxGraphScale, availableWidth / neededW, availableHeight / neededH);
-    }
+    property real scale: GraphLayout.fitScale(effectivePositions, availableWidth, availableHeight, maxCellLogical.width, maxCellLogical.height, graphGapRatio, maxGraphScale) ?? SettingsData.overviewScale
     property color activeBorderColor: Theme.primary
 
     readonly property real monitorPhysicalWidth: panelWindow.screen ? (panelWindow.screen.width / root.dpr) : (monitor?.width ?? 1920)
