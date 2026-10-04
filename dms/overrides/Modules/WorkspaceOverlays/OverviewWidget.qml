@@ -108,6 +108,15 @@ Item {
         if (!ids.includes(selectedWorkspace))
             resetSelection();
 
+        // A removed workspace's offset must not move a later one with its id.
+        const stale = Object.keys(workspaceOffsets).filter(key => !ids.includes(Number(key)));
+        if (stale.length > 0) {
+            const offsets = Object.assign({}, workspaceOffsets);
+            for (const key of stale)
+                delete offsets[key];
+            workspaceOffsetsEdited(offsets);
+        }
+
         previousWorkspaceIds = ids;
     }
 
@@ -287,15 +296,63 @@ Item {
 
     readonly property var graphPositions: layoutGraph(graphNodes, monitor?.activeWorkspace?.id ?? -1, availableWidth / availableHeight, maxCellLogical.height / maxCellLogical.width)
 
+    // -- dotfiles: drag & drop --------------------------------------------
+    // Dragging a workspace only moves it on screen: per-workspace offsets in
+    // grid cells, kept in memory by HyprlandOverview.qml for the session.
+    // The graph (connections) is never changed by a drag.
+    property var workspaceOffsets: ({})
+    signal workspaceOffsetsEdited(var offsets)
+
+    // In-progress drag: {"id": workspace, "dx": px, "dy": px}, or null.
+    property var dragPreview: null
+
+    // Graph layout plus the user's offsets: what is drawn and what the
+    // arrow keys navigate.
+    readonly property var effectivePositions: {
+        const result = {};
+        for (const key in graphPositions) {
+            const offset = workspaceOffsets[key] || [0, 0];
+            result[key] = [graphPositions[key][0] + offset[0], graphPositions[key][1] + offset[1]];
+        }
+        return result;
+    }
+
+    // Snaps the dragged workspace to the nearest free grid cell. A drop on
+    // another workspace's cell is refused and the workspace goes back.
+    function commitWorkspaceDrag() {
+        const drag = dragPreview;
+        dragPreview = null;
+        if (!drag || !effectivePositions[drag.id])
+            return;
+
+        const stepX = Math.round(drag.dx / gridLayout.pitchX);
+        const stepY = Math.round(drag.dy / gridLayout.pitchY);
+        if (stepX === 0 && stepY === 0)
+            return;
+
+        const here = effectivePositions[drag.id];
+        const target = [here[0] + stepX, here[1] + stepY];
+        for (const key in effectivePositions) {
+            const other = effectivePositions[key];
+            if (Number(key) !== drag.id && Math.abs(other[0] - target[0]) < 0.5 && Math.abs(other[1] - target[1]) < 0.5)
+                return;
+        }
+
+        const offsets = Object.assign({}, workspaceOffsets);
+        const old = offsets[drag.id] || [0, 0];
+        offsets[drag.id] = [old[0] + stepX, old[1] + stepY];
+        workspaceOffsetsEdited(offsets);
+    }
+
     // dotfiles: workspace reached from `fromId` in `direction`. Graph
     // connections win; otherwise the nearest workspace on screen.
     // Returns -1 when there is none.
     function neighborWorkspace(fromId, direction) {
         const linked = graphNodes[fromId]?.[direction];
-        if (linked !== undefined && graphPositions[linked] !== undefined)
+        if (linked !== undefined && effectivePositions[linked] !== undefined)
             return linked;
 
-        if (!graphPositions[fromId])
+        if (!effectivePositions[fromId])
             return displayedWorkspaceIds.length > 0 ? displayedWorkspaceIds[0] : -1;
 
         return spatialNeighbor(fromId, direction, []);
@@ -311,7 +368,7 @@ Item {
     // dotfiles: nearest workspace on screen within a 45 degree cone of
     // `direction`, ignoring the ids in `skip`. Returns -1 when there is none.
     function spatialNeighbor(fromId, direction, skip) {
-        const positions = graphPositions;
+        const positions = effectivePositions;
         const here = positions[fromId];
         if (!here)
             return -1;
@@ -419,7 +476,7 @@ Item {
     property bool monitorIsFocused: monitor?.focused ?? false
     // dotfiles: one uniform scale that fits the whole graph on screen.
     property real scale: {
-        const points = Object.values(graphPositions);
+        const points = Object.values(effectivePositions);
         if (points.length === 0)
             return SettingsData.overviewScale;
 
@@ -449,12 +506,15 @@ Item {
     // dotfiles: cells placed by graphPositions instead of a fixed grid.
     readonly property var gridLayout: {
         const ids = displayedWorkspaceIds;
-        const positions = graphPositions;
+        const positions = effectivePositions;
+        const drag = dragPreview;
         if (!ids || ids.length === 0)
             return {
                 "cells": [],
                 "width": 0,
-                "height": 0
+                "height": 0,
+                "pitchX": 1,
+                "pitchY": 1
             };
 
         const cellW = maxCellLogical.width * scale;
@@ -473,8 +533,9 @@ Item {
             const logical = monitorLogicalSize(monitorIpcForWorkspace(id));
             const width = logical.width * scale;
             const height = logical.height * scale;
-            const centerX = (points[index][0] - minX) * pitchX + cellW / 2;
-            const centerY = labelSpace + (points[index][1] - minY) * pitchY + cellH / 2;
+            const dragged = drag && drag.id === id;
+            const centerX = (points[index][0] - minX) * pitchX + cellW / 2 + (dragged ? drag.dx : 0);
+            const centerY = labelSpace + (points[index][1] - minY) * pitchY + cellH / 2 + (dragged ? drag.dy : 0);
             return {
                 "id": id,
                 "x": centerX - width / 2,
@@ -487,7 +548,9 @@ Item {
         return {
             "cells": cells,
             "width": (maxX - minX) * pitchX + cellW,
-            "height": labelSpace + (maxY - minY) * pitchY + cellH
+            "height": labelSpace + (maxY - minY) * pitchY + cellH,
+            "pitchX": pitchX,
+            "pitchY": pitchY
         };
     }
 
@@ -636,8 +699,11 @@ Item {
                     property bool hoveredWhileDragging: false
                     property bool shouldShowActiveIndicator: isActive && isOnThisMonitor && hasWindows
                     property bool isSelected: workspaceValue === root.selectedWorkspace
+                    property bool isDragged: root.dragPreview !== null && root.dragPreview.id === workspaceValue
 
                     visible: workspaceValue !== -1
+                    z: isDragged ? 1 : 0
+                    opacity: isDragged ? 0.8 : 1
 
                     x: cell?.x ?? 0
                     y: cell?.y ?? 0
@@ -670,16 +736,51 @@ Item {
                         color: workspace.isSelected ? root.activeBorderColor : Theme.withAlpha(Theme.surfaceText, 0.7)
                     }
 
+                    // dotfiles: press selects; releasing after a small movement is a
+                    // click (activate), a larger movement drags the workspace.
                     MouseArea {
                         id: workspaceArea
                         anchors.fill: parent
                         acceptedButtons: Qt.LeftButton
-                        onClicked: {
-                            if (root.draggingTargetWorkspace === -1) {
+                        preventStealing: true
+
+                        property point pressPoint
+                        property bool dragging: false
+
+                        onPressed: mouse => {
+                            pressPoint = mapToItem(workspaceGrid, mouse.x, mouse.y);
+                            dragging = false;
+                            root.selectedWorkspace = workspace.workspaceValue;
+                        }
+
+                        onPositionChanged: mouse => {
+                            const point = mapToItem(workspaceGrid, mouse.x, mouse.y);
+                            const dx = point.x - pressPoint.x;
+                            const dy = point.y - pressPoint.y;
+                            if (!dragging && Math.hypot(dx, dy) < Qt.styleHints.startDragDistance)
+                                return;
+                            dragging = true;
+                            root.dragPreview = {
+                                "id": workspace.workspaceValue,
+                                "dx": dx,
+                                "dy": dy
+                            };
+                        }
+
+                        onReleased: {
+                            if (dragging) {
+                                dragging = false;
+                                root.commitWorkspaceDrag();
+                            } else if (containsMouse && root.draggingTargetWorkspace === -1) {
                                 // Activate before closing: closing destroys this widget.
                                 root.activateWorkspace(workspace.workspaceValue);
                                 root.closeRequested();
                             }
+                        }
+
+                        onCanceled: {
+                            dragging = false;
+                            root.dragPreview = null;
                         }
                     }
 

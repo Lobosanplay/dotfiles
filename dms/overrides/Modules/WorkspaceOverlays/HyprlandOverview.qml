@@ -17,6 +17,11 @@ Scope {
     // scope, so the overview never opens before the graph is loaded.
     property var workspaceGraph: ({})
 
+    // dotfiles: visual offsets from dragging workspaces in the overview
+    // ({"3": [dx, dy]} in grid cells). Memory only: they last for the DMS
+    // session and never touch the graph.
+    property var workspaceOffsets: ({})
+
     FileView {
         path: Quickshell.env("HOME") + "/.local/state/hyprland/workspace-graph.json"
         watchChanges: true
@@ -236,6 +241,8 @@ Scope {
                                 panelWindow: root
                                 overviewOpen: overviewScope.overviewOpen
                                 workspaceGraph: overviewScope.workspaceGraph
+                                workspaceOffsets: overviewScope.workspaceOffsets
+                                onWorkspaceOffsetsEdited: offsets => overviewScope.workspaceOffsets = offsets
                                 onCloseRequested: {
                                     overviewScope.overviewOpen = false;
                                     closeTimer.restart();
