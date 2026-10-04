@@ -39,10 +39,11 @@ def validate_theme(preset: Any, schema: Any) -> list[str]:
 
     if not isinstance(preset, dict):
         return ["preset root must be a JSON object"]
-    if set(preset) != {"schema_version", "id", "name", "mode", "tokens"}:
-        errors.append("preset must contain exactly schema_version, id, name, mode, and tokens")
-    if preset.get("schema_version") != 1:
-        errors.append("schema_version must be 1")
+    expected_top_level = {"schema_version", "id", "name", "mode", "tokens", "typography", "iconography"}
+    if set(preset) != expected_top_level:
+        errors.append("preset has missing or unexpected top-level fields")
+    if preset.get("schema_version") != 2:
+        errors.append("schema_version must be 2")
     if not isinstance(preset.get("id"), str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", preset["id"]):
         errors.append("id must contain lowercase letters, digits, and hyphens")
     if not isinstance(preset.get("name"), str) or not preset["name"].strip():
@@ -64,10 +65,15 @@ def validate_theme(preset: Any, schema: Any) -> list[str]:
             if not isinstance(value, str) or not COLOR_RE.fullmatch(value):
                 errors.append(f"tokens.{group}.{key} must be opaque #RRGGBB")
 
+    errors.extend(validate_typography(preset.get("typography")))
+    errors.extend(validate_iconography(preset.get("iconography")))
+
     if isinstance(schema, dict):
         schema_properties = schema.get("properties", {})
-        if schema_properties.get("schema_version", {}).get("const") != 1:
-            errors.append("schema does not describe schema_version 1")
+        if set(schema.get("required", [])) != expected_top_level:
+            errors.append("schema required fields do not match the preset contract")
+        if schema_properties.get("schema_version", {}).get("const") != 2:
+            errors.append("schema does not describe schema_version 2")
         token_schema = schema_properties.get("tokens", {})
         token_properties = token_schema.get("properties", {})
         if set(token_properties) != set(required_groups):
@@ -81,6 +87,12 @@ def validate_theme(preset: Any, schema: Any) -> list[str]:
         color_schema = schema.get("$defs", {}).get("colorGroup", {})
         if color_schema.get("patternProperties", {}).get("^[a-z][a-z0-9_]*$", {}).get("pattern") != COLOR_RE.pattern:
             errors.append("schema color values must use the opaque #RRGGBB contract")
+        typography_schema = schema_properties.get("typography", {})
+        if set(typography_schema.get("required", [])) != {"families", "scale_unit", "scale", "weights", "line_height"}:
+            errors.append("schema typography roles do not match the preset contract")
+        iconography_schema = schema_properties.get("iconography", {})
+        if set(iconography_schema.get("required", [])) != {"provider", "family", "source", "symbol_format", "api", "aliases", "fallback"}:
+            errors.append("schema icon roles do not match the preset contract")
     else:
         errors.append("schema root must be a JSON object")
 
@@ -94,6 +106,93 @@ def validate_theme(preset: Any, schema: Any) -> list[str]:
         if contrast_ratio(text["muted"], background) < 3.0:
             errors.append("text.muted must have at least 3:1 contrast against surfaces.background")
 
+    return errors
+
+
+def validate_typography(typography: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(typography, dict) or set(typography) != {"families", "scale_unit", "scale", "weights", "line_height"}:
+        return ["typography must define families, scale_unit, scale, weights, and line_height"]
+
+    families = typography["families"]
+    if not isinstance(families, dict) or set(families) != {"ui", "mono"}:
+        errors.append("typography.families must define ui and mono")
+    else:
+        for role, family in families.items():
+            if not isinstance(family, dict) or set(family) != {"primary", "source", "fallback"}:
+                errors.append(f"typography.families.{role} has an invalid shape")
+                continue
+            if not isinstance(family["primary"], str) or not family["primary"].strip():
+                errors.append(f"typography.families.{role}.primary must be a non-empty family name")
+            if not isinstance(family["source"], str) or not family["source"].strip():
+                errors.append(f"typography.families.{role}.source must be documented")
+            fallback = family["fallback"]
+            if (
+                not isinstance(fallback, list)
+                or not fallback
+                or any(not isinstance(item, str) or not item.strip() for item in fallback)
+                or len(set(fallback)) != len(fallback)
+            ):
+                errors.append(f"typography.families.{role}.fallback must be a non-empty unique list")
+
+    expected_sizes = {"display", "title", "heading", "body", "label", "caption", "micro"}
+    scale = typography["scale"]
+    if not isinstance(scale, dict) or set(scale) != expected_sizes:
+        errors.append("typography.scale must define display, title, heading, body, label, caption, and micro")
+    elif any(type(size) is not int or not 8 <= size <= 64 for size in scale.values()):
+        errors.append("typography.scale values must be integer logical pixels between 8 and 64")
+    elif list(scale.values()) != sorted(scale.values(), reverse=True):
+        errors.append("typography.scale must descend from display to micro")
+
+    expected_weights = {"regular": 400, "medium": 500, "semibold": 600, "bold": 700}
+    if typography["weights"] != expected_weights:
+        errors.append("typography.weights must map regular/medium/semibold/bold to 400/500/600/700")
+
+    expected_line_heights = {"compact", "normal", "relaxed"}
+    line_height = typography["line_height"]
+    if not isinstance(line_height, dict) or set(line_height) != expected_line_heights:
+        errors.append("typography.line_height must define compact, normal, and relaxed")
+    elif any(type(value) not in (int, float) or not 1 < value <= 2 for value in line_height.values()):
+        errors.append("typography.line_height values must be ratios greater than 1 and at most 2")
+    elif list(line_height.values()) != sorted(line_height.values()):
+        errors.append("typography.line_height must increase from compact to relaxed")
+
+    if typography["scale_unit"] != "logical-px":
+        errors.append("typography.scale_unit must be logical-px")
+    return errors
+
+
+def validate_iconography(iconography: Any) -> list[str]:
+    expected_fields = {"provider", "family", "source", "symbol_format", "api", "aliases", "fallback"}
+    if not isinstance(iconography, dict) or set(iconography) != expected_fields:
+        return ["iconography has missing or unexpected fields"]
+
+    errors: list[str] = []
+    expected = {
+        "provider": "material-symbols-rounded",
+        "family": "Material Symbols Rounded",
+        "source": "DMS-bundled",
+        "symbol_format": "lowercase-ligature-name",
+        "api": {
+            "DankIcon.name": "<ligature-name>",
+            "AppIconRenderer.iconValue": "material:<ligature-name>",
+        },
+    }
+    for key, value in expected.items():
+        if iconography.get(key) != value:
+            errors.append(f"iconography.{key} does not match the DMS Material Symbols contract")
+
+    aliases = iconography["aliases"]
+    if (
+        not isinstance(aliases, dict)
+        or not aliases
+        or any(not re.fullmatch(r"[a-z][a-z0-9_]*", key) for key in aliases)
+        or any(not isinstance(value, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", value) for value in aliases.values())
+        or len(set(aliases.values())) != len(aliases)
+    ):
+        errors.append("iconography.aliases must map unique semantic ids to lowercase Material ligature names")
+    if not isinstance(iconography["fallback"], str) or not iconography["fallback"].strip():
+        errors.append("iconography.fallback must describe the system-icon fallback strategy")
     return errors
 
 
@@ -129,10 +228,44 @@ def render_theme(preset: dict[str, Any], template: str) -> str:
             raise ValueError(f"template references missing token: {key}") from exc
         return value[1:] if as_hex else value
 
+    template = template.replace("@@typography_lua@@", lua_literal(preset["typography"], indent=4))
+    template = template.replace("@@iconography_lua@@", lua_literal(preset["iconography"], indent=4))
     rendered = PLACEHOLDER_RE.sub(substitute, template)
     if "@@" in rendered:
         raise ValueError("template contains an unsupported or unresolved placeholder")
     return rendered
+
+
+def lua_literal(value: Any, indent: int = 0) -> str:
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if value is None:
+        return "nil"
+    if isinstance(value, (int, float)):
+        return repr(value)
+    if isinstance(value, list):
+        entries = [" " * (indent + 4) + lua_literal(item, indent + 4) + "," for item in value]
+        return "{}" if not entries else "{\n" + "\n".join(entries) + "\n" + " " * indent + "}"
+    if isinstance(value, dict):
+        entries = []
+        for key, item in value.items():
+            if not isinstance(key, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+                rendered_key = "[" + lua_literal(key, indent + 4) + "]"
+            else:
+                rendered_key = key
+            entries.append(
+                " " * (indent + 4)
+                + rendered_key
+                + " = "
+                + lua_literal(item, indent + 4)
+                + ","
+            )
+        return "{}" if not entries else "{\n" + "\n".join(entries) + "\n" + " " * indent + "}"
+    raise ValueError(f"unsupported token type for Lua output: {type(value).__name__}")
 
 
 def load_and_render() -> str:

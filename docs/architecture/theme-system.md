@@ -2,10 +2,11 @@
 
 ## Responsibilities
 
-`themes/presets/default.json` is the versioned source for the project's stable
-semantic color roles. `themes/tokens/schema.json` defines the required roles
-and their value format. Component templates translate those roles to
-component-specific configuration; they do not define another palette.
+`themes/presets/default.json` is the versioned source for the project's color,
+typography, and iconography roles. `themes/tokens/schema.json` defines the
+required roles and their value formats. Component templates translate those
+roles to component-specific configuration; they do not define another
+palette.
 
 The current generation path is:
 
@@ -25,13 +26,14 @@ hypr/.config/hypr/modules/appearance.lua
 ```
 
 The generated Lua module is committed so Hyprland can load the configuration
-without running a generator during startup. After changing the preset or its
-template, run `python3 scripts/build-theme.py --write`; use `--check` to detect
-stale generated output.
+without running a generator during startup. It contains all preset token
+groups; Hyprland currently consumes its color mapping. After changing the
+preset or its template, run `python3 scripts/build-theme.py --write`; use
+`--check` to detect stale generated output.
 
 ## Semantic token contract
 
-Presets use opaque `#RRGGBB` sRGB values grouped by role:
+Schema version 2 keeps opaque `#RRGGBB` sRGB colors grouped by role:
 
 - `surfaces`: `background`, `surface`, `surface_variant`, `surface_elevated`.
 - `text`: `primary`, `secondary`, `muted`, `disabled`.
@@ -39,9 +41,13 @@ Presets use opaque `#RRGGBB` sRGB values grouped by role:
 - `semantic`: `success`, `warning`, `error`, `info`.
 - `borders`: `default`, `subtle`.
 
-Opacity belongs to component mappings, not the palette. The schema version is
-explicit; adding or renaming required roles needs a schema version decision,
-validator/test updates, template updates, and migration notes.
+Typography roles are in the same preset: UI and monospace families with
+ordered fallbacks, a seven-step logical-pixel scale, named weights, and
+relative line heights. Iconography uses DMS-bundled Material Symbols Rounded
+with lowercase ligature names and a small semantic alias map. Opacity belongs
+to component mappings, not the palette. Adding or renaming required roles
+needs a schema version decision, validator/test updates, template updates,
+and migration notes.
 
 ## Matugen and DMS
 
@@ -62,8 +68,11 @@ with DMS's own outputs.
 
 ## Current consumers and boundaries
 
-Hyprland is the first repository-managed consumer. DMS continues to use its
-own theme tokens and generated colors; Kitty and GTK continue to use DMS
-outputs. This phase does not add a second independent palette for those
-applications. `docs/phases/17-theme-foundation.md` records the current limits
-and follow-up needed to connect these consumers to the semantic contract.
+Hyprland is the first repository-managed consumer of the generated module.
+DMS already bundles and uses Inter Variable, FiraCode Nerd Font, and Material
+Symbols Rounded; the selected token roles record those defaults and the
+system fallbacks. GTK continues to use system font and icon-theme settings.
+Kitty continues to resolve its unspecified `monospace` family through
+Fontconfig. Phase 18 documents the distinction between the shared contract
+and the existing component settings; it does not introduce another font or
+icon generator.

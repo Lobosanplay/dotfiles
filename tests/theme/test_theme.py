@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import shutil
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -25,6 +27,44 @@ class ThemeContractTests(unittest.TestCase):
         self.assertGreaterEqual(build_theme.contrast_ratio(tokens["text"]["primary"], tokens["surfaces"]["background"]), 7.0)
         self.assertGreaterEqual(build_theme.contrast_ratio(tokens["text"]["secondary"], tokens["surfaces"]["background"]), 4.5)
 
+    def test_typography_roles_and_scale_are_well_formed(self):
+        typography = self.preset["typography"]
+        sizes = typography["scale"]
+        self.assertEqual(list(sizes.values()), sorted(sizes.values(), reverse=True))
+        self.assertEqual(typography["weights"], {"regular": 400, "medium": 500, "semibold": 600, "bold": 700})
+        self.assertEqual(build_theme.validate_typography(typography), [])
+
+    def test_selected_system_fallbacks_resolve(self):
+        if not shutil.which("fc-match"):
+            self.skipTest("fontconfig fc-match is not installed")
+        for role, expected in (("ui", "Adwaita Sans"), ("mono", "Adwaita Mono")):
+            fallback = self.preset["typography"]["families"][role]["fallback"][0]
+            resolved = subprocess.run(
+                ["fc-match", "-f", "%{family}", fallback],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            self.assertEqual(resolved, expected)
+
+    def test_dms_bundled_fonts_and_material_ligatures_exist(self):
+        assets = Path("/usr/share/quickshell/dms/DankCommon/assets/fonts")
+        self.assertTrue((assets / "inter/InterVariable.ttf").is_file())
+        self.assertTrue((assets / "nerd-fonts/FiraCodeNerdFont-Regular.ttf").is_file())
+        material_font = next((assets / "material-design-icons/variablefont").glob("MaterialSymbolsRounded*.ttf"))
+        if not shutil.which("hb-shape"):
+            self.skipTest("hb-shape is not installed")
+        aliases = self.preset["iconography"]["aliases"]
+        self.assertEqual(build_theme.validate_iconography(self.preset["iconography"]), [])
+        for symbol in aliases.values():
+            shaped = subprocess.run(
+                ["hb-shape", str(material_font), symbol],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            self.assertIn(f"[{symbol}=", shaped)
+
     def test_invalid_color_and_missing_required_role_are_rejected(self):
         invalid = json.loads(json.dumps(self.preset))
         invalid["tokens"]["accents"]["primary"] = "blue"
@@ -42,6 +82,8 @@ class ThemeContractTests(unittest.TestCase):
         self.assertIn('"rgba(8ab4f8ee)"', first)
         self.assertIn('inactive_border = "rgba(343b46aa)"', first)
         self.assertIn("shadow = 0xee0b0d11", first)
+        self.assertIn('primary = "Inter Variable"', first)
+        self.assertIn('["AppIconRenderer.iconValue"] = "material:<ligature-name>"', first)
 
     def test_checked_in_generated_module_matches_preset(self):
         self.assertEqual(
