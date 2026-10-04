@@ -2,6 +2,8 @@
 ---- APPEARANCE ----
 --------------------
 
+local theme = require("modules.theme_tokens")
+
 hl.config({
     general = {
         gaps_in  = 5,
@@ -10,8 +12,8 @@ hl.config({
         border_size = 2,
 
         col = {
-            active_border   = { colors = {"rgba(33ccffee)", "rgba(00ff99ee)"}, angle = 45 },
-            inactive_border = "rgba(595959aa)",
+            active_border   = theme.hyprland.active_border,
+            inactive_border = theme.hyprland.inactive_border,
         },
 
         resize_on_border = false,
@@ -31,7 +33,7 @@ hl.config({
             enabled      = true,
             range        = 4,
             render_power = 3,
-            color        = 0xee1a1a1a,
+            color        = theme.hyprland.shadow,
         },
 
         blur = {

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dotfiles semantic theme tokens",
+  "description": "Version 1 theme preset contract. Colors are opaque sRGB hex values; component templates own opacity and rendering details.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "name", "mode", "tokens"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "name": { "type": "string", "minLength": 1 },
+    "mode": { "const": "dark" },
+    "tokens": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surfaces", "text", "accents", "semantic", "borders"],
+      "properties": {
+        "surfaces": {
+          "$ref": "#/$defs/colorGroup",
+          "required": ["background", "surface", "surface_variant", "surface_elevated"],
+          "properties": {
+            "background": { "description": "Lowest-level desktop/background color." },
+            "surface": { "description": "Default panel and application surface." },
+            "surface_variant": { "description": "Contrasting surface within a panel or control." },
+            "surface_elevated": { "description": "Raised surface such as a popover or card." }
+          }
+        },
+        "text": {
+          "$ref": "#/$defs/colorGroup",
+          "required": ["primary", "secondary", "muted", "disabled"],
+          "properties": {
+            "primary": { "description": "Highest-emphasis readable text." },
+            "secondary": { "description": "Supporting text." },
+            "muted": { "description": "Low-emphasis labels and metadata." },
+            "disabled": { "description": "Text for unavailable controls." }
+          }
+        },
+        "accents": {
+          "$ref": "#/$defs/colorGroup",
+          "required": ["primary", "secondary", "selection", "focus"],
+          "properties": {
+            "primary": { "description": "Primary interactive and brand accent." },
+            "secondary": { "description": "Secondary accent used for restrained variation." },
+            "selection": { "description": "Selected item background or indicator." },
+            "focus": { "description": "Keyboard focus indicator." }
+          }
+        },
+        "semantic": {
+          "$ref": "#/$defs/colorGroup",
+          "required": ["success", "warning", "error", "info"],
+          "properties": {
+            "success": { "description": "Successful or healthy state." },
+            "warning": { "description": "Cautionary state." },
+            "error": { "description": "Failure or destructive state." },
+            "info": { "description": "Informational state." }
+          }
+        },
+        "borders": {
+          "$ref": "#/$defs/colorGroup",
+          "required": ["default", "subtle"],
+          "properties": {
+            "default": { "description": "Standard component boundary." },
+            "subtle": { "description": "Low-emphasis separation line." }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "colorGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+      }
+    }
+  }
+}

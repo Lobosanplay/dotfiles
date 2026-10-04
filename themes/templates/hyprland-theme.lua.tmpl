@@ -1,0 +1,42 @@
+-- Generated from themes/presets/default.json by scripts/build-theme.py.
+-- Do not edit this generated file directly.
+return {
+    semantic = {
+        surfaces = {
+            background = "@@surfaces.background@@",
+            surface = "@@surfaces.surface@@",
+            surface_variant = "@@surfaces.surface_variant@@",
+            surface_elevated = "@@surfaces.surface_elevated@@",
+        },
+        text = {
+            primary = "@@text.primary@@",
+            secondary = "@@text.secondary@@",
+            muted = "@@text.muted@@",
+            disabled = "@@text.disabled@@",
+        },
+        accents = {
+            primary = "@@accents.primary@@",
+            secondary = "@@accents.secondary@@",
+            selection = "@@accents.selection@@",
+            focus = "@@accents.focus@@",
+        },
+        semantic = {
+            success = "@@semantic.success@@",
+            warning = "@@semantic.warning@@",
+            error = "@@semantic.error@@",
+            info = "@@semantic.info@@",
+        },
+        borders = {
+            default = "@@borders.default@@",
+            subtle = "@@borders.subtle@@",
+        },
+    },
+    hyprland = {
+        active_border = {
+            colors = { "rgba(@@accents.primary_hex@@ee)", "rgba(@@accents.secondary_hex@@ee)" },
+            angle = 45,
+        },
+        inactive_border = "rgba(@@borders.default_hex@@aa)",
+        shadow = 0xee@@surfaces.background_hex@@,
+    },
+}
