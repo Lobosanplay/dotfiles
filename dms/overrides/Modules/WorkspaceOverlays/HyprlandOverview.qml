@@ -3,6 +3,7 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Quickshell.Io
 import qs.Common
 import qs.Services
 
@@ -10,6 +11,26 @@ Scope {
     id: overviewScope
 
     property bool overviewOpen: false
+
+    // dotfiles: workspace graph persisted by hypr/modules/workspaces.lua
+    // ({"3": {"left": 2, "right": 4}, ...}). Read here, in the long-lived
+    // scope, so the overview never opens before the graph is loaded.
+    property var workspaceGraph: ({})
+
+    FileView {
+        path: Quickshell.env("HOME") + "/.local/state/hyprland/workspace-graph.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                overviewScope.workspaceGraph = JSON.parse(text()) || {};
+            } catch (e) {
+                overviewScope.workspaceGraph = {};
+            }
+        }
+        onLoadFailed: overviewScope.workspaceGraph = {}
+    }
 
     Loader {
         id: hyprlandLoader
@@ -215,6 +236,7 @@ Scope {
                             sourceComponent: OverviewWidget {
                                 panelWindow: root
                                 overviewOpen: overviewScope.overviewOpen
+                                workspaceGraph: overviewScope.workspaceGraph
                             }
                         }
                     }

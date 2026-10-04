@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
-import Quickshell.Io
 import qs.Common
 import qs.Services
 import qs.Widgets
@@ -54,24 +53,8 @@ Item {
     // confirmed with Enter. -1 means nothing selected.
     property int selectedWorkspace: -1
 
-    // dotfiles: workspace graph persisted by hypr/modules/workspaces.lua
-    // ({"3": {"left": 2, "right": 4}, ...}).
+    // dotfiles: workspace graph, provided already loaded by HyprlandOverview.qml.
     property var workspaceGraph: ({})
-
-    FileView {
-        path: Quickshell.env("HOME") + "/.local/state/hyprland/workspace-graph.json"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: {
-            try {
-                root.workspaceGraph = JSON.parse(text()) || {};
-            } catch (e) {
-                root.workspaceGraph = {};
-            }
-        }
-        onLoadFailed: root.workspaceGraph = {}
-    }
 
     function resetSelection() {
         selectedWorkspace = monitor?.activeWorkspace?.id ?? (displayedWorkspaceIds[0] ?? -1);
