@@ -53,3 +53,47 @@ hl.bind("CTRL + ALT + Delete", dms("processlist focusOrToggle"))
 hl.bind("Print", hl.dsp.exec_cmd("dms screenshot"))
 hl.bind("CTRL + Print", hl.dsp.exec_cmd("dms screenshot full"))
 hl.bind("ALT + Print", hl.dsp.exec_cmd("dms screenshot window"))
+
+--------------------------------------------------
+-- OVERVIEW COMMANDS
+--------------------------------------------------
+
+-- Entry points for the DMS overview (dms/overrides), which calls them as
+-- Lua dispatches. The graph logic stays in WorkspaceGraph; the overview
+-- cannot read return values, so refused operations become a notification
+-- and the graph is left untouched.
+local function report(ok, err)
+    if not ok and err then
+        hl.notification.create({ text = "Workspace graph: " .. err, timeout = 3000 })
+    end
+
+    return ok
+end
+
+WorkspaceOverview = {
+    activate = function(id)
+        return report(WorkspaceGraph.activate(id))
+    end,
+
+    -- Connects to an existing workspace, or to a new one when `to` is nil.
+    connect = function(from, direction, to)
+        if to == nil then
+            local id, err = WorkspaceGraph.create_neighbor(from, direction)
+            return report(id ~= nil, err)
+        end
+
+        return report(WorkspaceGraph.connect(from, direction, to))
+    end,
+
+    disconnect = function(from, direction)
+        return report(WorkspaceGraph.disconnect(from, direction))
+    end,
+
+    create = function()
+        return WorkspaceGraph.create()
+    end,
+
+    remove = function(id)
+        return report(WorkspaceGraph.remove(id))
+    end,
+}

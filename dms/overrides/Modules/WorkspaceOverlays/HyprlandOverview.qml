@@ -23,11 +23,10 @@ Scope {
         printErrors: false
         onFileChanged: reload()
         onLoaded: {
+            // Keep the last good graph if the file cannot be parsed.
             try {
                 overviewScope.workspaceGraph = JSON.parse(text()) || {};
-            } catch (e) {
-                overviewScope.workspaceGraph = {};
-            }
+            } catch (e) {}
         }
         onLoadFailed: overviewScope.workspaceGraph = {}
     }
@@ -262,6 +261,11 @@ Scope {
 
                     // dotfiles: arrows move a selection (graph connections first,
                     // then the nearest workspace on screen); Enter activates it.
+                    // Editing (Lua validates and applies, see hypr/modules/dms.lua):
+                    //   SUPER+SHIFT+arrow  connect the selection in that direction
+                    //   SUPER+CTRL+arrow   remove that connection
+                    //   N                  create a workspace
+                    //   X                  remove the selected workspace
                     Keys.onPressed: event => {
                         if (!root.isOverviewScreen)
                             return;
@@ -276,18 +280,43 @@ Scope {
                             [Qt.Key_Down]: "down"
                         };
                         const direction = directions[event.key];
+                        const selected = widget.selectedWorkspace;
+                        const meta = (event.modifiers & Qt.MetaModifier) !== 0;
+                        const shift = (event.modifiers & Qt.ShiftModifier) !== 0;
+                        const ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
+                        const plain = !meta && !shift && !ctrl;
 
-                        if (direction) {
-                            const target = widget.neighborWorkspace(widget.selectedWorkspace, direction);
+                        if (direction && meta && shift && !ctrl) {
+                            if (selected > 0) {
+                                const target = widget.connectTarget(selected, direction);
+                                if (target === -1)
+                                    widget.expectNewWorkspace();
+                                widget.graphCommand(`WorkspaceOverview.connect(${selected}, "${direction}", ${target === -1 ? "nil" : target})`);
+                            }
+                            event.accepted = true;
+                        } else if (direction && meta && ctrl && !shift) {
+                            if (selected > 0)
+                                widget.graphCommand(`WorkspaceOverview.disconnect(${selected}, "${direction}")`);
+                            event.accepted = true;
+                        } else if (direction && plain) {
+                            const target = widget.neighborWorkspace(selected, direction);
                             if (target !== -1)
                                 widget.selectedWorkspace = target;
                             event.accepted = true;
-                        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                            const target = widget.selectedWorkspace;
+                        } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && plain) {
+                            // Dispatched from here: closing destroys the widget.
                             overviewScope.overviewOpen = false;
                             closeTimer.restart();
-                            if (target > 0)
-                                HyprlandService.focusWorkspace(target);
+                            if (selected > 0)
+                                Hyprland.dispatch(`function() WorkspaceOverview.activate(${selected}) end`);
+                            event.accepted = true;
+                        } else if (event.key === Qt.Key_N && plain) {
+                            widget.expectNewWorkspace();
+                            widget.graphCommand("WorkspaceOverview.create()");
+                            event.accepted = true;
+                        } else if (event.key === Qt.Key_X && plain) {
+                            if (selected > 0)
+                                widget.graphCommand(`WorkspaceOverview.remove(${selected})`);
                             event.accepted = true;
                         }
                     }

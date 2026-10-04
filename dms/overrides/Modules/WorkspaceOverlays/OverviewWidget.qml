@@ -62,7 +62,53 @@ Item {
     property var workspaceGraph: ({})
 
     function resetSelection() {
-        selectedWorkspace = monitor?.activeWorkspace?.id ?? (displayedWorkspaceIds[0] ?? -1);
+        const active = monitor?.activeWorkspace?.id;
+        selectedWorkspace = displayedWorkspaceIds.includes(active) ? active : (displayedWorkspaceIds[0] ?? -1);
+    }
+
+    // dotfiles: graph edits and activation are Lua dispatches to
+    // WorkspaceOverview (hypr/modules/dms.lua); Hyprland owns the graph and
+    // the overview only sees the result through workspace-graph.json.
+    function graphCommand(lua) {
+        Hyprland.dispatch(`function() ${lua} end`);
+    }
+
+    function activateWorkspace(id) {
+        if (id > 0)
+            graphCommand(`WorkspaceOverview.activate(${id})`);
+    }
+
+    // dotfiles: keep the selection on a workspace that still exists, and
+    // select a workspace created from the overview once it shows up.
+    property bool selectNextNewWorkspace: false
+    property var previousWorkspaceIds: []
+
+    function expectNewWorkspace() {
+        selectNextNewWorkspace = true;
+        newWorkspaceTimer.restart();
+    }
+
+    Timer {
+        id: newWorkspaceTimer
+        interval: 2000
+        onTriggered: root.selectNextNewWorkspace = false
+    }
+
+    onDisplayedWorkspaceIdsChanged: {
+        const ids = displayedWorkspaceIds;
+
+        if (selectNextNewWorkspace) {
+            const added = ids.filter(id => !previousWorkspaceIds.includes(id));
+            if (added.length > 0) {
+                selectedWorkspace = added[0];
+                selectNextNewWorkspace = false;
+            }
+        }
+
+        if (!ids.includes(selectedWorkspace))
+            resetSelection();
+
+        previousWorkspaceIds = ids;
     }
 
     // -- dotfiles: graph layout -----------------------------------------
@@ -242,17 +288,33 @@ Item {
     readonly property var graphPositions: layoutGraph(graphNodes, monitor?.activeWorkspace?.id ?? -1, availableWidth / availableHeight, maxCellLogical.height / maxCellLogical.width)
 
     // dotfiles: workspace reached from `fromId` in `direction`. Graph
-    // connections win; otherwise the nearest workspace on screen within a
-    // 45 degree cone of the direction. Returns -1 when there is none.
+    // connections win; otherwise the nearest workspace on screen.
+    // Returns -1 when there is none.
     function neighborWorkspace(fromId, direction) {
-        const positions = graphPositions;
         const linked = graphNodes[fromId]?.[direction];
-        if (linked !== undefined && positions[linked] !== undefined)
+        if (linked !== undefined && graphPositions[linked] !== undefined)
             return linked;
 
+        if (!graphPositions[fromId])
+            return displayedWorkspaceIds.length > 0 ? displayedWorkspaceIds[0] : -1;
+
+        return spatialNeighbor(fromId, direction, []);
+    }
+
+    // dotfiles: workspace the selection would connect to in `direction`:
+    // the nearest one on screen that is not linked to it yet, or -1 (then
+    // a new workspace is created there).
+    function connectTarget(fromId, direction) {
+        return spatialNeighbor(fromId, direction, Object.values(graphNodes[fromId] || {}));
+    }
+
+    // dotfiles: nearest workspace on screen within a 45 degree cone of
+    // `direction`, ignoring the ids in `skip`. Returns -1 when there is none.
+    function spatialNeighbor(fromId, direction, skip) {
+        const positions = graphPositions;
         const here = positions[fromId];
         if (!here)
-            return displayedWorkspaceIds.length > 0 ? displayedWorkspaceIds[0] : -1;
+            return -1;
 
         const [dx, dy] = graphDirections[direction];
         let best = -1;
@@ -260,7 +322,7 @@ Item {
 
         for (const key in positions) {
             const id = Number(key);
-            if (id === fromId)
+            if (id === fromId || skip.includes(id))
                 continue;
 
             const [x, y] = positions[key];
@@ -458,6 +520,7 @@ Item {
         Hyprland.refreshWorkspaces();
         Hyprland.refreshMonitors();
         resetSelection();
+        previousWorkspaceIds = displayedWorkspaceIds;
     }
 
     onOverviewOpenChanged: {
@@ -613,9 +676,9 @@ Item {
                         acceptedButtons: Qt.LeftButton
                         onClicked: {
                             if (root.draggingTargetWorkspace === -1) {
-                                const target = workspace.workspaceValue;
+                                // Activate before closing: closing destroys this widget.
+                                root.activateWorkspace(workspace.workspaceValue);
                                 root.closeRequested();
-                                HyprlandService.focusWorkspace(target);
                             }
                         }
                     }
@@ -744,9 +807,8 @@ Item {
                             if (!windowData || !windowData.address)
                                 return;
                             if (event.button === Qt.LeftButton) {
-                                const address = windowData.address;
+                                HyprlandService.focusWindow(windowData.address);
                                 root.closeRequested();
-                                HyprlandService.focusWindow(address);
                                 event.accepted = true;
                             } else if (event.button === Qt.MiddleButton) {
                                 HyprlandService.closeWindow(windowData.address);
