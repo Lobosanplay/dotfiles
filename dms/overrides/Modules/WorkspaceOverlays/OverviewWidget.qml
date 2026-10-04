@@ -317,6 +317,106 @@ Item {
         return result;
     }
 
+    // -- dotfiles: zoom and pan --------------------------------------------
+    // A camera over the graph, applied as a transform to its layers, so the
+    // layout is not recomputed and thumbnails scale with it. Every opening
+    // starts with the fitted view (zoom 1, no pan).
+    property real cameraZoom: 1
+    property real cameraX: 0
+    property real cameraY: 0
+    readonly property real minCameraZoom: 0.5
+    readonly property real maxCameraZoom: 4
+
+    component CameraScale: Scale {
+        xScale: root.cameraZoom
+        yScale: root.cameraZoom
+    }
+
+    component CameraTranslate: Translate {
+        x: root.cameraX
+        y: root.cameraY
+    }
+
+    function clamp(value, low, high) {
+        return Math.max(low, Math.min(high, value));
+    }
+
+    // Sets the camera, keeping part of the graph inside the panel.
+    function setCamera(zoom, x, y) {
+        zoom = clamp(zoom, minCameraZoom, maxCameraZoom);
+
+        const viewW = overviewBackground.width;
+        const viewH = overviewBackground.height;
+        const sceneW = workspaceGrid.width * zoom;
+        const sceneH = workspaceGrid.height * zoom;
+        const keepW = Math.min(sceneW, viewW) * 0.25;
+        const keepH = Math.min(sceneH, viewH) * 0.25;
+
+        cameraZoom = zoom;
+        cameraX = clamp(x, keepW - sceneW - workspaceGrid.x, viewW - keepW - workspaceGrid.x);
+        cameraY = clamp(y, keepH - sceneH - workspaceGrid.y, viewH - keepH - workspaceGrid.y);
+    }
+
+    // Zooms by `factor` keeping the point (px, py) of the panel in place.
+    function zoomAt(px, py, factor) {
+        const x = px - workspaceGrid.x;
+        const y = py - workspaceGrid.y;
+        const sceneX = (x - cameraX) / cameraZoom;
+        const sceneY = (y - cameraY) / cameraZoom;
+        const zoom = clamp(cameraZoom * factor, minCameraZoom, maxCameraZoom);
+        setCamera(zoom, x - sceneX * zoom, y - sceneY * zoom);
+    }
+
+    // Wheel zoom for any MouseArea of the overview (`item` is the MouseArea
+    // that received the event). Pointer handlers such as WheelHandler do
+    // not receive events in this surface, so MouseAreas handle the wheel.
+    function wheelZoom(wheel, item) {
+        const steps = wheel.angleDelta.y / 120;
+        if (steps === 0)
+            return;
+        const point = item.mapToItem(overviewBackground, wheel.x, wheel.y);
+        zoomAt(point.x, point.y, Math.pow(1.15, steps));
+    }
+
+    function zoomBy(factor) {
+        zoomAt(overviewBackground.width / 2, overviewBackground.height / 2, factor);
+    }
+
+    function resetCamera() {
+        cameraZoom = 1;
+        cameraX = 0;
+        cameraY = 0;
+    }
+
+    // Pans just enough to show a workspace that the camera left outside.
+    function ensureVisible(id) {
+        const cell = gridLayout.cells.find(c => c.id === id);
+        if (!cell)
+            return;
+
+        const margin = Theme.spacingL;
+        const left = workspaceGrid.x + cameraX + cell.x * cameraZoom;
+        const top = workspaceGrid.y + cameraY + (cell.y - workspaceLabelSpace) * cameraZoom;
+        const right = left + cell.width * cameraZoom;
+        const bottom = workspaceGrid.y + cameraY + (cell.y + cell.height) * cameraZoom;
+
+        let dx = 0;
+        let dy = 0;
+        if (left < margin)
+            dx = margin - left;
+        else if (right > overviewBackground.width - margin)
+            dx = overviewBackground.width - margin - right;
+        if (top < margin)
+            dy = margin - top;
+        else if (bottom > overviewBackground.height - margin)
+            dy = overviewBackground.height - margin - bottom;
+
+        if (dx !== 0 || dy !== 0)
+            setCamera(cameraZoom, cameraX + dx, cameraY + dy);
+    }
+
+    onSelectedWorkspaceChanged: ensureVisible(selectedWorkspace)
+
     // Snaps the dragged workspace to the nearest free grid cell. A drop on
     // another workspace's cell is refused and the workspace goes back.
     function commitWorkspaceDrag() {
@@ -605,6 +705,31 @@ Item {
         implicitHeight: workspaceGrid.implicitHeight + padding * 2
         radius: Theme.cornerRadius
         color: Theme.surfaceContainer
+        // dotfiles: zoomed content stays inside the panel.
+        clip: true
+
+        // dotfiles: below the graph layers: the wheel zooms around the
+        // pointer and a middle-button drag pans (over a window thumbnail
+        // the middle button still closes the window).
+        MouseArea {
+            id: cameraArea
+            anchors.fill: parent
+            acceptedButtons: Qt.MiddleButton
+
+            property point pressPoint
+            property real startX: 0
+            property real startY: 0
+
+            onWheel: wheel => root.wheelZoom(wheel, cameraArea)
+
+            onPressed: mouse => {
+                pressPoint = Qt.point(mouse.x, mouse.y);
+                startX = root.cameraX;
+                startY = root.cameraY;
+            }
+
+            onPositionChanged: mouse => root.setCamera(root.cameraZoom, startX + mouse.x - pressPoint.x, startY + mouse.y - pressPoint.y)
+        }
 
         ElevationShadow {
             anchors.fill: parent
@@ -621,6 +746,7 @@ Item {
         Canvas {
             id: edgeCanvas
             anchors.centerIn: parent
+            transform: [CameraScale {}, CameraTranslate {}]
             width: root.gridLayout.width
             height: root.gridLayout.height
             z: root.workspaceZ
@@ -676,6 +802,7 @@ Item {
 
             z: root.workspaceZ
             anchors.centerIn: parent
+            transform: [CameraScale {}, CameraTranslate {}]
             implicitWidth: root.gridLayout.width
             implicitHeight: root.gridLayout.height
 
@@ -743,6 +870,7 @@ Item {
                         anchors.fill: parent
                         acceptedButtons: Qt.LeftButton
                         preventStealing: true
+                        onWheel: wheel => root.wheelZoom(wheel, workspaceArea)
 
                         property point pressPoint
                         property bool dragging: false
@@ -805,6 +933,7 @@ Item {
         Item {
             id: windowSpace
             anchors.centerIn: parent
+            transform: [CameraScale {}, CameraTranslate {}]
             implicitWidth: workspaceGrid.implicitWidth
             implicitHeight: workspaceGrid.implicitHeight
 
@@ -871,6 +1000,8 @@ Item {
                         onExited: window.hovered = false
                         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
                         drag.target: parent
+                        // dotfiles: the wheel zooms the overview.
+                        onWheel: wheel => root.wheelZoom(wheel, dragArea)
 
                         onPressed: mouse => {
                             root.draggingFromWorkspace = windowData?.workspace.id;
@@ -924,6 +1055,7 @@ Item {
         Item {
             id: monitorLabelSpace
             anchors.centerIn: parent
+            transform: [CameraScale {}, CameraTranslate {}]
             implicitWidth: workspaceGrid.implicitWidth
             implicitHeight: workspaceGrid.implicitHeight
             z: root.monitorLabelZ

@@ -273,6 +273,7 @@ Scope {
                     //   SUPER+CTRL+arrow   remove that connection
                     //   N                  create a workspace
                     //   X                  remove the selected workspace
+                    // Camera: + / - zoom, 0 resets to the fitted view.
                     Keys.onPressed: event => {
                         if (!root.isOverviewScreen)
                             return;
@@ -324,6 +325,15 @@ Scope {
                         } else if (event.key === Qt.Key_X && plain) {
                             if (selected > 0)
                                 widget.graphCommand(`WorkspaceOverview.remove(${selected})`);
+                            event.accepted = true;
+                        } else if ((event.key === Qt.Key_Plus || event.key === Qt.Key_Equal) && !meta && !ctrl) {
+                            widget.zoomBy(1.25);
+                            event.accepted = true;
+                        } else if (event.key === Qt.Key_Minus && plain) {
+                            widget.zoomBy(0.8);
+                            event.accepted = true;
+                        } else if (event.key === Qt.Key_0 && plain) {
+                            widget.resetCamera();
                             event.accepted = true;
                         }
                     }
