@@ -6,7 +6,15 @@ Usage:
 
 The state is produced by hypr/modules/workspace_viewer.lua:
     {"active": 4, "monitor": "eDP-1",
-     "workspaces": {"3": {"left": 2, "right": 4}, ...}}
+     "workspaces": {"3": {"left": 2, "right": 4}, ...},
+     "monitors": {"eDP-1": [x, y, logical_w, logical_h], ...},
+     "workspace_monitors": {"3": "eDP-1", ...},
+     "clients": [{"workspace": 3, "at": [x, y], "size": [w, h],
+                  "class": "kitty", "title": "~", "floating": false,
+                  "fullscreen": false, "focus": 0}, ...]}
+
+Window positions are global logical coordinates; previews subtract the
+origin of the workspace's monitor.
 """
 
 import ctypes.util
@@ -14,7 +22,7 @@ import json
 import os
 import subprocess
 import sys
-from collections import deque
+from collections import deque, namedtuple
 
 # gtk4-layer-shell must be loaded before libwayland-client, which only
 # works through LD_PRELOAD when used from Python.
@@ -51,15 +59,19 @@ DIRECTIONS = {
 
 # Geometry, in logical pixels at scale 1.0. The whole graph is scaled
 # uniformly to fit the surface, so these only set proportions.
-NODE_W = 120
-NODE_H = 80
-PITCH_X = 200  # distance between neighbouring node centres
-PITCH_Y = 150
-RADIUS = 14
-COMPONENT_GAP = 1  # empty grid cells between disconnected components
+NODE_W = 360
+NODE_H = 220
+PITCH_X = 440  # distance between neighbouring preview centres
+PITCH_Y = 300
+RADIUS = 16
+COMPONENT_GAP = 0.5  # extra grid cells between disconnected components
+
+PREVIEW_PAD = 14  # space between a preview's border and its mini screen
+INFO_SIZE = 22  # diameter of the [i] badge
+LABEL_PX = 15  # application name inside a window
+TITLE_PX = 12  # window title below it
 
 MARGIN = 48  # space kept free around the graph
-FOOTER_H = 40
 MAX_SCALE = 1.5  # keep small graphs from becoming huge
 
 # ----------------------------------------------------------------------
@@ -83,7 +95,77 @@ def parse_state(raw):
         for target in connections.values():
             nodes.setdefault(target, {})
 
-    return nodes, data.get("active"), data.get("monitor")
+    active = data.get("active")
+    monitor = data.get("monitor")
+    frames, windows = parse_previews(data, monitor)
+
+    return nodes, active, monitor, frames, windows
+
+
+Window = namedtuple("Window", "x y w h app title floating focus")
+
+
+def app_label(window_class, title):
+    """Short application name: "brave-browser" -> "Brave"."""
+    name = (window_class or title or "?").split(".")[-1].split("-")[0]
+    return name[:1].upper() + name[1:]
+
+
+def parse_previews(data, viewer_monitor):
+    """Monitor frame and windows of each workspace, in monitor coordinates.
+
+    Returns (frames, windows): frames maps workspace -> (width, height) of
+    the monitor showing it, plus a None key used for unknown workspaces;
+    windows maps workspace -> [Window], ordered back to front.
+    """
+    monitors = {
+        name: tuple(frame) for name, frame in data.get("monitors", {}).items()
+    }
+    default = monitors.get(viewer_monitor) or next(
+        iter(monitors.values()), (0, 0, 16, 10)
+    )
+
+    workspace_monitor = {
+        int(key): monitors.get(name, default)
+        for key, name in data.get("workspace_monitors", {}).items()
+    }
+
+    frames = {None: default[2:]}
+    frames.update({ws: frame[2:] for ws, frame in workspace_monitor.items()})
+
+    windows = {}
+
+    for client in data.get("clients", []):
+        workspace = int(client["workspace"])
+        origin_x, origin_y, frame_w, frame_h = workspace_monitor.get(workspace, default)
+
+        if client.get("fullscreen"):
+            x0, y0, x1, y1 = 0, 0, frame_w, frame_h
+        else:
+            x = client["at"][0] - origin_x
+            y = client["at"][1] - origin_y
+            # Clamp into the monitor so nothing lands outside the preview.
+            x0 = min(max(x, 0), frame_w)
+            y0 = min(max(y, 0), frame_h)
+            x1 = min(max(x + client["size"][0], 0), frame_w)
+            y1 = min(max(y + client["size"][1], 0), frame_h)
+
+        if x1 - x0 < 1 or y1 - y0 < 1:
+            continue
+
+        windows.setdefault(workspace, []).append(Window(
+            x0, y0, x1 - x0, y1 - y0,
+            app_label(client.get("class"), client.get("title")),
+            client.get("title") or "",
+            bool(client.get("floating")),
+            int(client.get("focus", 0)),
+        ))
+
+    # Tiled below floating; within each, least recently focused first.
+    for items in windows.values():
+        items.sort(key=lambda win: (win.floating, -win.focus))
+
+    return frames, windows
 
 
 def edges_of(nodes):
@@ -180,12 +262,13 @@ def normalised(component):
     }
 
 
-def layout_graph(nodes, center):
+def layout_graph(nodes, center, aspect=16 / 10):
     """Return {workspace: (x, y)} in grid units with `center` at (0, 0).
 
     The component containing `center` is expanded around it by BFS.
-    Disconnected components are placed alternately to the right and to
-    the left of it, vertically centred, ordered by their lowest id.
+    Each disconnected component, ordered by its lowest id, goes to the
+    side (right, left, below, above) that keeps the largest scale for a
+    viewport of the given aspect ratio.
     """
     if not nodes:
         return {}
@@ -196,26 +279,42 @@ def layout_graph(nodes, center):
     visited = set()
     positions = layout_component(nodes, center, visited)
 
-    right_edge = max(x for x, _ in positions.values())
-    left_edge = min(x for x, _ in positions.values())
-
     others = [
         normalised(layout_component(nodes, root, visited))
         for root in sorted(nodes)
         if root not in visited
     ]
 
-    for index, comp in enumerate(others):
+    def relative_scale(xs, ys):
+        needed_w = (max(xs) - min(xs)) * PITCH_X + NODE_W
+        needed_h = (max(ys) - min(ys)) * PITCH_Y + NODE_H
+        return min(aspect / needed_w, 1 / needed_h)
+
+    for comp in others:
         comp_w = max(x for x, _ in comp.values()) + 1
         comp_h = max(y for _, y in comp.values()) + 1
-        offset_y = -(comp_h - 1) / 2
 
-        if index % 2 == 0:
-            offset_x = right_edge + 1 + COMPONENT_GAP
-            right_edge = offset_x + comp_w - 1
-        else:
-            offset_x = left_edge - COMPONENT_GAP - comp_w
-            left_edge = offset_x
+        xs = [x for x, _ in positions.values()]
+        ys = [y for _, y in positions.values()]
+        mid_x = -(comp_w - 1) / 2
+        mid_y = -(comp_h - 1) / 2
+
+        offsets = (
+            (max(xs) + 1 + COMPONENT_GAP, mid_y),  # right
+            (min(xs) - COMPONENT_GAP - comp_w, mid_y),  # left
+            (mid_x, max(ys) + 1 + COMPONENT_GAP),  # below
+            (mid_x, min(ys) - COMPONENT_GAP - comp_h),  # above
+        )
+
+        # max() keeps the first offset on ties, so the order above is
+        # the deterministic preference.
+        offset_x, offset_y = max(
+            offsets,
+            key=lambda off: relative_scale(
+                xs + [off[0], off[0] + comp_w - 1],
+                ys + [off[1], off[1] + comp_h - 1],
+            ),
+        )
 
         for node, (x, y) in comp.items():
             positions[node] = (x + offset_x, y + offset_y)
@@ -224,24 +323,37 @@ def layout_graph(nodes, center):
 
 
 def fit_transform(positions, width, height):
-    """Uniform scale that fits the graph with (0, 0) at the centre.
+    """Uniform scale that fits the whole graph inside the surface.
+
+    The scale comes from the graph's bounding box. The centre workspace
+    at (0, 0) is then moved as close to the middle of the surface as the
+    margins allow.
 
     Returns (scale, origin_x, origin_y): a grid point (x, y) is drawn at
     origin + (x * PITCH_X, y * PITCH_Y) * scale.
     """
-    reach_x = max((abs(x) for x, _ in positions.values()), default=0)
-    reach_y = max((abs(y) for _, y in positions.values()), default=0)
+    xs = [x for x, _ in positions.values()] or [0]
+    ys = [y for _, y in positions.values()] or [0]
 
-    needed_w = 2 * reach_x * PITCH_X + NODE_W
-    needed_h = 2 * reach_y * PITCH_Y + NODE_H
+    needed_w = (max(xs) - min(xs)) * PITCH_X + NODE_W
+    needed_h = (max(ys) - min(ys)) * PITCH_Y + NODE_H
 
-    # The footer is reserved at both ends so the centre stays centred.
     available_w = max(width - 2 * MARGIN, 1)
-    available_h = max(height - 2 * (MARGIN + FOOTER_H), 1)
+    available_h = max(height - 2 * MARGIN, 1)
 
     scale = min(available_w / needed_w, available_h / needed_h, MAX_SCALE)
 
-    return scale, width / 2, height / 2
+    def centred(size, low, high, pitch, node):
+        # Range of origins that keep the graph inside the margins.
+        lowest = MARGIN - low * pitch * scale + node * scale / 2
+        highest = size - MARGIN - high * pitch * scale - node * scale / 2
+        return min(max(size / 2, lowest), max(highest, lowest))
+
+    return (
+        scale,
+        centred(width, min(xs), max(xs), PITCH_X, NODE_W),
+        centred(height, min(ys), max(ys), PITCH_Y, NODE_H),
+    )
 
 
 # ----------------------------------------------------------------------
@@ -286,15 +398,23 @@ def neighbor(nodes, positions, current, direction):
 
 
 class GraphView(Gtk.DrawingArea):
-    def __init__(self, nodes, active):
+    def __init__(self, nodes, active, frames, windows):
         super().__init__()
 
         self.nodes = nodes
         self.active = active
+        self.frames = frames
+        self.windows = windows
         self.edges = edges_of(nodes)
-        self.positions = layout_graph(nodes, active)
+        # The viewer's own monitor frame sets the aspect to lay out for.
+        frame_w, frame_h = frames[None]
+        self.positions = layout_graph(nodes, active, frame_w / frame_h)
 
         self.selected = active if active in self.positions else None
+
+        # Workspaces whose [i] badge currently shows their number.
+        self.info_shown = set()
+        self._badges = {}
 
         # Cached fit, recomputed only when the surface size changes.
         self._fit_size = None
@@ -303,6 +423,10 @@ class GraphView(Gtk.DrawingArea):
         self.set_hexpand(True)
         self.set_vexpand(True)
         self.set_draw_func(self.on_draw)
+
+        click = Gtk.GestureClick()
+        click.connect("pressed", self.on_click)
+        self.add_controller(click)
 
     def move_selection(self, direction):
         if not self.positions:
@@ -317,6 +441,19 @@ class GraphView(Gtk.DrawingArea):
             self.selected = target
 
         self.queue_draw()
+
+    def toggle_info(self, workspace):
+        if workspace is None:
+            return
+
+        self.info_shown ^= {workspace}
+        self.queue_draw()
+
+    def on_click(self, _gesture, _n_press, x, y):
+        for workspace, (bx, by, bw, bh) in self._badges.items():
+            if bx <= x <= bx + bw and by <= y <= by + bh:
+                self.toggle_info(workspace)
+                return
 
     # -- geometry -------------------------------------------------------
 
@@ -340,11 +477,22 @@ class GraphView(Gtk.DrawingArea):
         x, y, w, h = self.node_rect(node, fit)
         return x + w / 2, y + h / 2
 
+    def screen_rect(self, node, rect, scale):
+        """The workspace's monitor, letterboxed inside its preview."""
+        x, y, w, h = rect
+        pad = PREVIEW_PAD * scale
+        frame_w, frame_h = self.frames.get(node, self.frames[None])
+
+        fit = min((w - 2 * pad) / frame_w, (h - 2 * pad) / frame_h)
+        sw, sh = frame_w * fit, frame_h * fit
+
+        return x + (w - sw) / 2, y + (h - sh) / 2, sw, sh, fit
+
     # -- drawing helpers ------------------------------------------------
 
     @staticmethod
     def rounded_rect(cr, x, y, w, h, r):
-        r = min(r, w / 2, h / 2)
+        r = max(min(r, w / 2, h / 2), 0)
         cr.new_sub_path()
         cr.arc(x + w - r, y + r, r, -1.5708, 0)
         cr.arc(x + w - r, y + h - r, r, 0, 1.5708)
@@ -352,22 +500,24 @@ class GraphView(Gtk.DrawingArea):
         cr.arc(x + r, y + r, r, 3.1416, 4.7124)
         cr.close_path()
 
-    def draw_text(self, cr, text, cx, cy, size_px, bold=False):
+    def text_layout(self, text, size_px, bold=False, max_width=None):
         layout = self.create_pango_layout(text)
-        font = Pango.FontDescription.from_string(f"Sans {'Bold' if bold else ''}")
-        font.set_absolute_size(max(size_px, 6) * Pango.SCALE)
+        font = Pango.FontDescription.from_string("Sans Bold" if bold else "Sans")
+        font.set_absolute_size(size_px * Pango.SCALE)
         layout.set_font_description(font)
 
-        _, logical = layout.get_pixel_extents()
-        cr.move_to(cx - logical.width / 2, cy - logical.height / 2)
-        PangoCairo.show_layout(cr, layout)
-        return logical.width, logical.height
+        if max_width is not None:
+            layout.set_width(int(max(max_width, 1) * Pango.SCALE))
+            layout.set_ellipsize(Pango.EllipsizeMode.END)
+            layout.set_alignment(Pango.Alignment.CENTER)
+
+        return layout
 
     def palette(self):
         """Theme foreground plus a contrasting colour derived from it.
 
-        The surface itself is transparent, so every node carries its own
-        fill in the contrast colour to stay readable over any wallpaper.
+        The surface itself is transparent, so every preview carries its
+        own fill in the contrast colour to stay readable over any wallpaper.
         """
         fg = self.get_color()
         luminance = 0.2126 * fg.red + 0.7152 * fg.green + 0.0722 * fg.blue
@@ -390,8 +540,8 @@ class GraphView(Gtk.DrawingArea):
         radius = RADIUS * scale
         line = max(2 * scale, 1.5)
 
-        # Edges, clipped so they stop at the node borders. A wider line in
-        # the contrast colour underneath keeps them visible on any wallpaper.
+        # Edges, clipped so they stop at the preview borders. A wider line
+        # in the contrast colour keeps them visible on any wallpaper.
         cr.save()
         cr.rectangle(0, 0, width, height)
         for node in self.positions:
@@ -408,62 +558,132 @@ class GraphView(Gtk.DrawingArea):
                 cr.stroke()
         cr.restore()
 
-        # Nodes
-        label_px = NODE_H * scale * 0.38
+        self._badges = {}
 
         for node in sorted(self.positions):
-            x, y, w, h = self.node_rect(node, fit)
-            is_active = node == self.active
+            rect = self.node_rect(node, fit)
+            self.draw_preview(cr, node, rect, scale, fg, bg, source, radius, line)
 
-            self.rounded_rect(cr, x, y, w, h, radius)
+    def draw_preview(self, cr, node, rect, scale, fg, bg, source, radius, line):
+        x, y, w, h = rect
+        is_active = node == self.active
 
-            if is_active:
-                source(fg, 0.95)
-                cr.fill()
-                source(bg, 1.0)
-            else:
-                source(bg, 0.85)
-                cr.fill_preserve()
-                source(fg, 0.6)
-                cr.set_line_width(line * 0.75)
+        # Card
+        self.rounded_rect(cr, x, y, w, h, radius)
+        source(bg, 0.82)
+        cr.fill_preserve()
+        if is_active:
+            source(fg, 0.07)
+            cr.fill_preserve()
+            source(fg, 0.95)
+            cr.set_line_width(line * 1.5)
+        else:
+            source(fg, 0.35)
+            cr.set_line_width(line * 0.75)
+        cr.stroke()
+
+        # Mini screen with the workspace's windows
+        sx, sy, sw, sh, to_preview = self.screen_rect(node, rect, scale)
+
+        cr.save()
+        self.rounded_rect(cr, sx, sy, sw, sh, radius * 0.4)
+        source(fg, 0.05)
+        cr.fill_preserve()
+        cr.clip()
+
+        gap = max(1.5 * scale, 1)
+        for window in self.windows.get(node, []):
+            self.draw_window(
+                cr,
+                window,
+                sx + window.x * to_preview + gap,
+                sy + window.y * to_preview + gap,
+                window.w * to_preview - 2 * gap,
+                window.h * to_preview - 2 * gap,
+                scale, fg, bg, source, radius,
+            )
+        cr.restore()
+
+        self.draw_badge(cr, node, rect, scale, fg, bg, source)
+
+        if node == self.selected:
+            ring = max(6 * scale, 4)
+            ring_rect = (x - ring, y - ring, w + 2 * ring, h + 2 * ring)
+
+            for colour, alpha, width_ in ((bg, 0.7, line * 2.5), (fg, 1.0, line * 1.5)):
+                self.rounded_rect(cr, *ring_rect, radius + ring)
+                source(colour, alpha)
+                cr.set_line_width(width_)
                 cr.stroke()
-                source(fg, 1.0)
 
-            self.draw_text(cr, str(node), x + w / 2, y + h / 2, label_px, bold=is_active)
+    def draw_window(self, cr, window, x, y, w, h, scale, fg, bg, source, radius):
+        if w < 2 or h < 2:
+            return
 
-            if node == self.selected:
-                ring = max(6 * scale, 4)
-                ring_rect = (x - ring, y - ring, w + 2 * ring, h + 2 * ring)
+        self.rounded_rect(cr, x, y, w, h, radius * 0.3)
+        source(bg, 0.9)
+        cr.fill_preserve()
+        source(fg, 0.10)
+        cr.fill_preserve()
+        source(fg, 0.55)
+        cr.set_line_width(max(scale, 1))
+        cr.stroke()
 
-                for colour, alpha, width_ in ((bg, 0.7, line * 2.5), (fg, 1.0, line * 1.5)):
-                    self.rounded_rect(cr, *ring_rect, radius + ring)
-                    source(colour, alpha)
-                    cr.set_line_width(width_)
-                    cr.stroke()
+        # Labels only where they fit: app name, then the title if room.
+        label_px = max(LABEL_PX * scale, 7)
+        title_px = max(TITLE_PX * scale, 6)
+        text_w = w - 8 * scale
 
-        self.draw_footer(cr, width, height, fg, bg)
+        if text_w < label_px * 2 or h < label_px * 1.6:
+            return
 
-    def draw_footer(self, cr, width, height, fg, bg):
-        active_label = "—" if self.active is None else str(self.active)
-        footer = f"Active: {active_label}"
-        if self.selected is not None and self.selected != self.active:
-            footer += f"    Selected: {self.selected}"
+        app = self.text_layout(window.app, label_px, bold=True, max_width=text_w)
+        _, app_ext = app.get_pixel_extents()
 
-        layout = self.create_pango_layout(footer)
-        _, logical = layout.get_pixel_extents()
+        title = None
+        if window.title and window.title.lower() != window.app.lower():
+            title = self.text_layout(window.title, title_px, max_width=text_w)
+            _, title_ext = title.get_pixel_extents()
+            if app_ext.height + title_ext.height + 4 * scale > h * 0.9:
+                title = None
 
-        pill_w = logical.width + 32
-        pill_h = FOOTER_H * 0.75
-        cx = width / 2
-        cy = height - MARGIN - FOOTER_H / 2
+        total = app_ext.height + (title_ext.height + 2 * scale if title else 0)
+        top = y + (h - total) / 2
 
-        self.rounded_rect(cr, cx - pill_w / 2, cy - pill_h / 2, pill_w, pill_h, pill_h / 2)
-        cr.set_source_rgba(*bg, 0.85)
-        cr.fill()
+        source(fg, 1.0)
+        cr.move_to(x + 4 * scale, top)
+        PangoCairo.show_layout(cr, app)
 
-        cr.set_source_rgba(*fg, 1.0)
-        cr.move_to(cx - logical.width / 2, cy - logical.height / 2)
+        if title:
+            source(fg, 0.65)
+            cr.move_to(x + 4 * scale, top + app_ext.height + 2 * scale)
+            PangoCairo.show_layout(cr, title)
+
+    def draw_badge(self, cr, node, rect, scale, fg, bg, source):
+        """Small [i] in the top-right corner; shows the number on demand."""
+        x, y, w, _ = rect
+        size = max(INFO_SIZE * scale, 14)
+        showing = node in self.info_shown
+
+        layout = self.text_layout(str(node) if showing else "i", size * 0.6, bold=True)
+        _, ext = layout.get_pixel_extents()
+
+        badge_w = max(size, ext.width + size * 0.6)
+        inset = max(PREVIEW_PAD * scale * 0.5, 3)
+        bx, by = x + w - inset - badge_w, y + inset
+
+        self.rounded_rect(cr, bx, by, badge_w, size, size / 2)
+        source(fg if showing else bg, 0.95)
+        cr.fill_preserve()
+        source(fg, 0.6)
+        cr.set_line_width(1)
+        cr.stroke()
+
+        source(bg if showing else fg, 1.0)
+        cr.move_to(bx + (badge_w - ext.width) / 2, by + (size - ext.height) / 2)
         PangoCairo.show_layout(cr, layout)
+
+        self._badges[node] = (bx, by, badge_w, size)
 
 
 # ----------------------------------------------------------------------
@@ -472,7 +692,7 @@ class GraphView(Gtk.DrawingArea):
 
 
 class ViewerApp(Gtk.Application):
-    def __init__(self, nodes, active, monitor):
+    def __init__(self, nodes, active, monitor, frames, windows):
         super().__init__(
             application_id=APP_ID,
             flags=Gio.ApplicationFlags.NON_UNIQUE,
@@ -480,6 +700,8 @@ class ViewerApp(Gtk.Application):
         self.nodes = nodes
         self.active = active
         self.monitor = monitor
+        self.frames = frames
+        self.windows = windows
 
     def do_activate(self):
         window = Gtk.Window(application=self, title="Workspace Graph")
@@ -518,7 +740,7 @@ class ViewerApp(Gtk.Application):
         if output is not None:
             Gtk4LayerShell.set_monitor(window, output)
 
-        self.view = GraphView(self.nodes, self.active)
+        self.view = GraphView(self.nodes, self.active, self.frames, self.windows)
         window.set_child(self.view)
 
         keys = Gtk.EventControllerKey()
@@ -556,6 +778,7 @@ class ViewerApp(Gtk.Application):
             Gdk.KEY_Right: lambda: move("right"),
             Gdk.KEY_Up: lambda: move("up"),
             Gdk.KEY_Down: lambda: move("down"),
+            Gdk.KEY_i: lambda: self.view.toggle_info(self.view.selected),
         }
 
         action = actions.get(keyval)
@@ -590,8 +813,8 @@ def main():
         print("workspace-viewer: layer-shell not supported", file=sys.stderr)
         return 1
 
-    nodes, active, monitor = parse_state(sys.argv[1])
-    app = ViewerApp(nodes, active, monitor)
+    nodes, active, monitor, frames, windows = parse_state(sys.argv[1])
+    app = ViewerApp(nodes, active, monitor, frames, windows)
     return app.run([sys.argv[0]])
 
 

@@ -7,10 +7,36 @@
 
 local viewer_script = os.getenv("HOME") .. "/dotfiles/scripts/workspace-viewer.py"
 
--- The bracket keeps pkill from matching the shell that runs it.
-local viewer_pattern = "[w]orkspace-viewer\\.py"
+-- Anchored to the interpreter so pkill only matches viewer processes,
+-- never an editor or shell that merely mentions the script's path.
+local viewer_pattern = "^[^ ]*python[0-9.]* [^ ]*/workspace-viewer\\.py( |$)"
 
 local directions = { "left", "right", "up", "down" }
+
+--------------------------------------------------
+-- JSON / SHELL HELPERS
+--------------------------------------------------
+
+-- Window titles can contain anything, so strings are escaped properly.
+local function json_string(value)
+    local escaped = tostring(value):gsub('[%c"\\]', function(char)
+        if char == '"' or char == "\\" then
+            return "\\" .. char
+        end
+
+        return string.format("\\u%04x", char:byte())
+    end)
+
+    return '"' .. escaped .. '"'
+end
+
+local function shell_quote(value)
+    return "'" .. value:gsub("'", "'\\''") .. "'"
+end
+
+local function round(value)
+    return math.floor(value + 0.5)
+end
 
 --------------------------------------------------
 -- DATA
@@ -32,6 +58,71 @@ local function collect_nodes()
     end
 
     return nodes
+end
+
+-- Snapshot used to draw workspace previews: the logical frame of each
+-- monitor, which monitor shows each workspace, and the mapped windows.
+-- Window positions stay global; the viewer subtracts the monitor origin.
+local function build_preview_json()
+    local monitor_parts = {}
+
+    for _, monitor in ipairs(hl.get_monitors()) do
+        -- width/height are physical pixels; positions are logical.
+        local width = monitor.width / monitor.scale
+        local height = monitor.height / monitor.scale
+
+        if monitor.transform and monitor.transform % 2 == 1 then
+            width, height = height, width
+        end
+
+        table.insert(monitor_parts, string.format(
+            "%s:[%d,%d,%d,%d]",
+            json_string(monitor.name),
+            round(monitor.x), round(monitor.y), round(width), round(height)
+        ))
+    end
+
+    local workspace_monitor_parts = {}
+
+    for _, workspace in ipairs(hl.get_workspaces()) do
+        if workspace.id and workspace.id > 0 and workspace.monitor then
+            table.insert(workspace_monitor_parts, string.format(
+                '"%d":%s',
+                workspace.id,
+                json_string(workspace.monitor.name)
+            ))
+        end
+    end
+
+    local client_parts = {}
+
+    for _, window in ipairs(hl.get_windows()) do
+        local workspace = window.workspace
+
+        if window.mapped and not window.hidden
+            and workspace and workspace.id and workspace.id > 0 then
+            table.insert(client_parts, string.format(
+                '{"workspace":%d,"at":[%d,%d],"size":[%d,%d],'
+                    .. '"class":%s,"title":%s,"floating":%s,'
+                    .. '"fullscreen":%s,"focus":%d}',
+                workspace.id,
+                round(window.at.x), round(window.at.y),
+                round(window.size.x), round(window.size.y),
+                json_string(window.class or ""),
+                json_string(window.title or ""),
+                tostring(window.floating == true),
+                tostring((window.fullscreen or 0) ~= 0),
+                window.focus_history_id or 0
+            ))
+        end
+    end
+
+    return string.format(
+        '"monitors":{%s},"workspace_monitors":{%s},"clients":[%s]',
+        table.concat(monitor_parts, ","),
+        table.concat(workspace_monitor_parts, ","),
+        table.concat(client_parts, ",")
+    )
 end
 
 local function build_state_json()
@@ -68,14 +159,15 @@ local function build_state_json()
 
     -- The viewer opens on the monitor that shows the active workspace.
     if active and active.monitor and active.monitor.name then
-        monitor_json = string.format("%q", active.monitor.name)
+        monitor_json = json_string(active.monitor.name)
     end
 
     return string.format(
-        '{"active":%s,"monitor":%s,"workspaces":{%s}}',
+        '{"active":%s,"monitor":%s,"workspaces":{%s},%s}',
         active_json,
         monitor_json,
-        table.concat(node_parts, ",")
+        table.concat(node_parts, ","),
+        build_preview_json()
     )
 end
 
@@ -89,7 +181,7 @@ end
 -- exit codes here. Instead, pkill -e prints one line per killed process.
 local function close()
     local pipe = io.popen(
-        "pkill -e -f '" .. viewer_pattern .. "' 2>/dev/null"
+        "pkill -e -f " .. shell_quote(viewer_pattern) .. " 2>/dev/null"
     )
 
     if not pipe then
@@ -103,10 +195,9 @@ local function close()
 end
 
 local function open()
-    -- The JSON only contains digits, braces, quoted direction names and
-    -- the monitor connector name (e.g. eDP-1), so single quotes are safe.
     hl.exec_cmd(
-        "python3 '" .. viewer_script .. "' '" .. build_state_json() .. "'"
+        "python3 " .. shell_quote(viewer_script)
+            .. " " .. shell_quote(build_state_json())
     )
 end
 
