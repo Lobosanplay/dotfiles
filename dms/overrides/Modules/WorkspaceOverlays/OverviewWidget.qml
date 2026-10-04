@@ -355,6 +355,34 @@ Item {
     readonly property real minCameraZoom: 0.5
     readonly property real maxCameraZoom: 4
 
+    // dotfiles: keyboard camera moves are animated; the wheel and the
+    // middle-button pan follow the pointer immediately.
+    property bool cameraAnimated: false
+
+    Behavior on cameraZoom {
+        enabled: root.cameraAnimated
+        NumberAnimation {
+            duration: Theme.shortDuration
+            easing.type: Theme.standardEasing
+        }
+    }
+
+    Behavior on cameraX {
+        enabled: root.cameraAnimated
+        NumberAnimation {
+            duration: Theme.shortDuration
+            easing.type: Theme.standardEasing
+        }
+    }
+
+    Behavior on cameraY {
+        enabled: root.cameraAnimated
+        NumberAnimation {
+            duration: Theme.shortDuration
+            easing.type: Theme.standardEasing
+        }
+    }
+
     component CameraScale: Scale {
         xScale: root.cameraZoom
         yScale: root.cameraZoom
@@ -402,15 +430,18 @@ Item {
         const steps = wheel.angleDelta.y / 120;
         if (steps === 0)
             return;
+        cameraAnimated = false;
         const point = item.mapToItem(overviewBackground, wheel.x, wheel.y);
         zoomAt(point.x, point.y, Math.pow(1.15, steps));
     }
 
     function zoomBy(factor) {
+        cameraAnimated = true;
         zoomAt(overviewBackground.width / 2, overviewBackground.height / 2, factor);
     }
 
     function resetCamera() {
+        cameraAnimated = true;
         cameraZoom = 1;
         cameraX = 0;
         cameraY = 0;
@@ -439,8 +470,10 @@ Item {
         else if (bottom > overviewBackground.height - margin)
             dy = overviewBackground.height - margin - bottom;
 
-        if (dx !== 0 || dy !== 0)
+        if (dx !== 0 || dy !== 0) {
+            cameraAnimated = true;
             setCamera(cameraZoom, cameraX + dx, cameraY + dy);
+        }
     }
 
     onSelectedWorkspaceChanged: ensureVisible(selectedWorkspace)
@@ -751,6 +784,7 @@ Item {
             onWheel: wheel => root.wheelZoom(wheel, cameraArea)
 
             onPressed: mouse => {
+                root.cameraAnimated = false;
                 pressPoint = Qt.point(mouse.x, mouse.y);
                 startX = root.cameraX;
                 startY = root.cameraY;
@@ -762,7 +796,8 @@ Item {
         // dotfiles: rename / icon editor (R / I), outside the camera.
         Rectangle {
             id: editorBar
-            visible: root.editingWorkspace > 0
+            opacity: root.editingWorkspace > 0 ? 1 : 0
+            visible: opacity > 0
             z: 10
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
@@ -773,6 +808,13 @@ Item {
             color: Theme.surfaceContainerHigh
             border.width: 1
             border.color: root.activeBorderColor
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.shortDuration
+                    easing.type: Theme.standardEasing
+                }
+            }
 
             Row {
                 id: editorRow
@@ -945,6 +987,21 @@ Item {
                         if (!workspaceExists)
                             return Theme.withAlpha(Theme.outline, 0.7);
                         return Theme.withAlpha(root.activeBorderColor, 0);
+                    }
+
+                    // dotfiles: the selection moves with a short transition.
+                    Behavior on border.width {
+                        NumberAnimation {
+                            duration: Theme.shortDuration
+                            easing.type: Theme.standardEasing
+                        }
+                    }
+
+                    Behavior on border.color {
+                        ColorAnimation {
+                            duration: Theme.shortDuration
+                            easing.type: Theme.standardEasing
+                        }
                     }
 
                     // dotfiles: small label outside the top-left corner: the number,
