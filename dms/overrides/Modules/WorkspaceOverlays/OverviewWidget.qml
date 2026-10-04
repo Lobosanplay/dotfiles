@@ -10,6 +10,11 @@ Item {
     readonly property var log: Log.scoped("OverviewWidget")
     required property var panelWindow
     required property bool overviewOpen
+
+    // dotfiles: asks HyprlandOverview.qml to close the overview. Assigning
+    // overviewOpen here only changed this widget's copy, so clicks left the
+    // overview open.
+    signal closeRequested
     readonly property HyprlandMonitor monitor: Hyprland.monitorFor(panelWindow.screen)
     readonly property real dpr: CompositorService.getScreenScale(panelWindow.screen)
     readonly property int workspacesShown: SettingsData.overviewRows * SettingsData.overviewColumns
@@ -608,8 +613,9 @@ Item {
                         acceptedButtons: Qt.LeftButton
                         onClicked: {
                             if (root.draggingTargetWorkspace === -1) {
-                                root.overviewOpen = false;
-                                HyprlandService.focusWorkspace(workspace.workspaceValue);
+                                const target = workspace.workspaceValue;
+                                root.closeRequested();
+                                HyprlandService.focusWorkspace(target);
                             }
                         }
                     }
@@ -738,8 +744,9 @@ Item {
                             if (!windowData || !windowData.address)
                                 return;
                             if (event.button === Qt.LeftButton) {
-                                root.overviewOpen = false;
-                                HyprlandService.focusWindow(windowData.address);
+                                const address = windowData.address;
+                                root.closeRequested();
+                                HyprlandService.focusWindow(address);
                                 event.accepted = true;
                             } else if (event.button === Qt.MiddleButton) {
                                 HyprlandService.closeWindow(windowData.address);

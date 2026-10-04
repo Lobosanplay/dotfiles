@@ -237,6 +237,10 @@ Scope {
                                 panelWindow: root
                                 overviewOpen: overviewScope.overviewOpen
                                 workspaceGraph: overviewScope.workspaceGraph
+                                onCloseRequested: {
+                                    overviewScope.overviewOpen = false;
+                                    closeTimer.restart();
+                                }
                             }
                         }
                     }
