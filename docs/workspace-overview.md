@@ -34,6 +34,41 @@ Archivos:
 
 Estado del grafo: `~/.local/state/hyprland/workspace-graph.json`.
 
+### API de `WorkspaceGraph` (Lua)
+
+Las funciones de edición devuelven `ok, error` y no modifican nada si la
+operación no es válida. Toda modificación válida se guarda (de forma atómica).
+
+| Función | Descripción |
+|---|---|
+| `navigate(direction)` | Activa el vecino; si no hay, crea uno conectado y lo activa |
+| `activate(id)` | Activa el workspace en Hyprland |
+| `connect(a, direction, b)` | Conecta en ambos sentidos; rechaza huecos ocupados, `a == b` y pares ya conectados |
+| `disconnect(a, direction)` | Quita la conexión en ambos extremos; devuelve el antiguo vecino |
+| `create()` | Crea un nodo virtual con el menor id libre y lo devuelve (sin activarlo) |
+| `create_neighbor(a, direction)` | Crea un nodo virtual conectado a `a` en esa dirección |
+| `remove(id)` | Borra un nodo virtual (no el último); reconecta en línea recta |
+| `get_neighbors(id)` | Copia de las conexiones de un nodo |
+| `get_workspaces()` | La tabla interna (solo lectura) |
+| `get_active_workspace()` | Workspace activo de Hyprland |
+| `validate()` | `ok, problemas`: comprueba los invariantes |
+| `save()` | Guarda el grafo |
+
+Invariantes: ids enteros positivos; conexiones bidireccionales; sin enlaces a
+sí mismo ni dobles entre el mismo par; toda conexión apunta a un nodo. Al
+cargar se reparan los archivos que no los cumplan.
+
+**Nodos virtuales:** un nodo puede existir sin workspace en Hyprland (creado
+con `create()` o persistido de otra sesión). Es intencionado. Un nodo se borra
+automáticamente cuando Hyprland destruye su workspace al quedar vacío; a mano
+(`X`) solo se pueden borrar nodos virtuales, así el grafo nunca pierde un
+workspace que Hyprland tiene abierto.
+
+El overview no edita el grafo: envía órdenes Lua a `WorkspaceOverview`
+(`hypr/.config/hypr/modules/dms.lua`), que llama a `WorkspaceGraph` y muestra
+una notificación de Hyprland si la operación se rechaza. Los cambios llegan al
+overview a través del JSON, que vigila con `FileView`.
+
 ### Atajos
 
 | Atajo | Acción |
@@ -42,6 +77,10 @@ Estado del grafo: `~/.local/state/hyprland/workspace-graph.json`.
 | `←` `↑` `→` `↓` (en el overview) | Mover la selección |
 | `ENTER` / clic (en el overview) | Ir al workspace seleccionado y cerrar |
 | `ESC` (en el overview) | Cerrar sin cambiar de workspace |
+| `SUPER + SHIFT + flecha` (en el overview) | Conectar el seleccionado con el workspace más cercano en esa dirección; si no hay ninguno, crea uno nuevo conectado |
+| `SUPER + CTRL + flecha` (en el overview) | Quitar la conexión del seleccionado en esa dirección |
+| `N` (en el overview) | Crear un workspace (virtual) y seleccionarlo |
+| `X` (en el overview) | Borrar el workspace seleccionado (solo si es virtual) |
 | `SUPER + ALT + flechas` | Navegar por el grafo; crea un workspace si no hay conexión en esa dirección (teclado 60 %: Fn primero) |
 | `SUPER + F` | Maximizar / restaurar la ventana |
 | `SUPER + ALT + X` | Salir de Hyprland |
@@ -110,10 +149,8 @@ Estado del grafo: `~/.local/state/hyprland/workspace-graph.json`.
 
 ## Siguientes pasos
 
-**A. Editar el grafo desde el overview** (recomendado)
-- Mover un workspace, conectar o desconectar con atajos o arrastrando.
-- Tecla `x` para borrar a mano (`WorkspaceGraph.remove` ya existe).
-- Crear un workspace nuevo desde un cuadro vacío.
+**A. Editar el grafo desde el overview** (hecho con teclado: conectar,
+desconectar, crear y borrar). Pendiente: arrastrar con el ratón.
 
 **B. Mejorar el layout**
 - Evitar líneas en diagonal recolocando los componentes que chocan.
