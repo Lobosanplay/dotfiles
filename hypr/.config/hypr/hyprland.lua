@@ -23,6 +23,15 @@ require("modules.input")
 require("modules.workspaces")
 require("modules.workspace_viewer")
 require("modules.keybinds")
+require("modules.dms")
+
+-- DMS_STARTUP_BEGIN
+-- Starts the systemd user session that launches Dank Material Shell.
+hl.on("hyprland.start", function()
+    hl.exec_cmd("dbus-update-activation-environment --systemd --all")
+    hl.exec_cmd("systemctl --user start hyprland-session.target")
+end)
+-- DMS_STARTUP_END
 
 ---------------------
 ---- MY PROGRAMS ----

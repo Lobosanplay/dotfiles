@@ -178,8 +178,9 @@ hl.bind(
 ---- WORKSPACE VIEWER ------
 ----------------------------
 
+-- SUPER + TAB opens the DMS overview (modules/dms.lua).
 hl.bind(
-    mainMod .. " + TAB",
+    mainMod .. " + ALT + TAB",
     function()
         WorkspaceViewer.toggle()
     end
