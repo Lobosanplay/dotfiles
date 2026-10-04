@@ -13,13 +13,15 @@ hl.bind(mainMod .. " + Q", hl.dsp.exec_cmd(terminal))
 local closeWindowBind = hl.bind(mainMod .. " + C", hl.dsp.window.close())
 -- closeWindowBind:set_enabled(false)
 
+-- Exit Hyprland. Three keys so it is hard to press by accident.
 hl.bind(
-    mainMod .. " + M",
+    mainMod .. " + ALT + X",
     hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'")
 )
 
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
+hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(menu))
 hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
 hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))
@@ -174,14 +176,5 @@ hl.bind(
     end
 )
 
-----------------------------
----- WORKSPACE VIEWER ------
-----------------------------
-
--- SUPER + TAB opens the DMS overview (modules/dms.lua).
-hl.bind(
-    mainMod .. " + ALT + TAB",
-    function()
-        WorkspaceViewer.toggle()
-    end
-)
+-- SUPER + TAB opens the DMS overview, laid out as the workspace graph
+-- (modules/dms.lua and dms/overrides).

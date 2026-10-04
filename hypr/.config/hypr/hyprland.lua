@@ -21,7 +21,6 @@ require("modules.appearance")
 require("modules.animations")
 require("modules.input")
 require("modules.workspaces")
-require("modules.workspace_viewer")
 require("modules.keybinds")
 require("modules.dms")
 
