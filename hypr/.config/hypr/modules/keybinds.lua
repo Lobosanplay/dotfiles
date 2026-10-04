@@ -173,3 +173,14 @@ hl.bind(
         WorkspaceGraph.navigate("down")
     end
 )
+
+----------------------------
+---- WORKSPACE VIEWER ------
+----------------------------
+
+hl.bind(
+    mainMod .. " + TAB",
+    function()
+        WorkspaceViewer.toggle()
+    end
+)
