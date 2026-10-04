@@ -22,6 +22,24 @@ Scope {
     // session and never touch the graph.
     property var workspaceOffsets: ({})
 
+    // dotfiles: names and icons from hypr/modules/workspace_metadata.lua
+    // ({"3": {"name": "code", "icon": "terminal"}}).
+    property var workspaceMetadata: ({})
+
+    FileView {
+        path: Quickshell.env("HOME") + "/.local/state/hyprland/workspace-metadata.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            // Keep the last good metadata if the file cannot be parsed.
+            try {
+                overviewScope.workspaceMetadata = JSON.parse(text()) || {};
+            } catch (e) {}
+        }
+        onLoadFailed: overviewScope.workspaceMetadata = {}
+    }
+
     FileView {
         path: Quickshell.env("HOME") + "/.local/state/hyprland/workspace-graph.json"
         watchChanges: true
@@ -242,6 +260,8 @@ Scope {
                                 overviewOpen: overviewScope.overviewOpen
                                 workspaceGraph: overviewScope.workspaceGraph
                                 workspaceOffsets: overviewScope.workspaceOffsets
+                                workspaceMetadata: overviewScope.workspaceMetadata
+                                onEditorClosed: focusScope.forceActiveFocus()
                                 onWorkspaceOffsetsEdited: offsets => overviewScope.workspaceOffsets = offsets
                                 onCloseRequested: {
                                     overviewScope.overviewOpen = false;
@@ -273,6 +293,7 @@ Scope {
                     //   SUPER+CTRL+arrow   remove that connection
                     //   N                  create a workspace
                     //   X                  remove the selected workspace
+                    //   R / I              rename / change the icon of the selection
                     // Camera: + / - zoom, 0 resets to the fitted view.
                     Keys.onPressed: event => {
                         if (!root.isOverviewScreen)
@@ -334,6 +355,9 @@ Scope {
                             event.accepted = true;
                         } else if (event.key === Qt.Key_0 && plain) {
                             widget.resetCamera();
+                            event.accepted = true;
+                        } else if ((event.key === Qt.Key_R || event.key === Qt.Key_I) && plain) {
+                            widget.startEditing(selected, event.key === Qt.Key_R ? "name" : "icon");
                             event.accepted = true;
                         }
                     }

@@ -317,6 +317,34 @@ Item {
         return result;
     }
 
+    // -- dotfiles: names and icons -----------------------------------------
+    // Shown next to the small workspace number; edited with R (name) and
+    // I (icon, a Material Symbols name) through WorkspaceOverview.
+    property var workspaceMetadata: ({})
+    property int editingWorkspace: -1
+    property string editingField: ""
+    signal editorClosed
+
+    function startEditing(id, field) {
+        if (id <= 0)
+            return;
+        editingWorkspace = id;
+        editingField = field;
+        editorInput.text = workspaceMetadata[id]?.[field] ?? "";
+        editorInput.selectAll();
+        editorInput.forceActiveFocus();
+    }
+
+    function finishEditing(save) {
+        if (save && editingWorkspace > 0) {
+            const value = editorInput.text.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+            const command = editingField === "name" ? "rename" : "set_icon";
+            graphCommand(`WorkspaceOverview.${command}(${editingWorkspace}, ${JSON.stringify(value)})`);
+        }
+        editingWorkspace = -1;
+        editorClosed();
+    }
+
     // -- dotfiles: zoom and pan --------------------------------------------
     // A camera over the graph, applied as a transform to its layers, so the
     // layout is not recomputed and thumbnails scale with it. Every opening
@@ -731,6 +759,74 @@ Item {
             onPositionChanged: mouse => root.setCamera(root.cameraZoom, startX + mouse.x - pressPoint.x, startY + mouse.y - pressPoint.y)
         }
 
+        // dotfiles: rename / icon editor (R / I), outside the camera.
+        Rectangle {
+            id: editorBar
+            visible: root.editingWorkspace > 0
+            z: 10
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.spacingM
+            width: editorRow.implicitWidth + Theme.spacingM * 2
+            height: editorRow.implicitHeight + Theme.spacingS * 2
+            radius: Theme.cornerRadius
+            color: Theme.surfaceContainerHigh
+            border.width: 1
+            border.color: root.activeBorderColor
+
+            Row {
+                id: editorRow
+                anchors.centerIn: parent
+                spacing: Theme.spacingS
+
+                DankIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.editingField === "icon" && editorInput.text.length > 0
+                    name: editorInput.text
+                    size: Theme.fontSizeLarge
+                    color: Theme.surfaceText
+                }
+
+                StyledText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: (root.editingField === "name" ? "Nombre del workspace " : "Icono (Material Symbols) del workspace ") + root.editingWorkspace + ":"
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.surfaceText
+                }
+
+                TextInput {
+                    id: editorInput
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 220
+                    maximumLength: root.editingField === "name" ? 32 : 48
+                    color: Theme.surfaceText
+                    selectionColor: root.activeBorderColor
+                    font.pixelSize: Theme.fontSizeMedium
+                    clip: true
+
+                    Keys.onReturnPressed: event => {
+                        root.finishEditing(true);
+                        event.accepted = true;
+                    }
+                    Keys.onEnterPressed: event => {
+                        root.finishEditing(true);
+                        event.accepted = true;
+                    }
+                    Keys.onEscapePressed: event => {
+                        root.finishEditing(false);
+                        event.accepted = true;
+                    }
+                }
+
+                StyledText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Enter guarda · Esc cancela · vacío borra"
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.withAlpha(Theme.surfaceText, 0.6)
+                }
+            }
+        }
+
         ElevationShadow {
             anchors.fill: parent
             z: -1
@@ -851,16 +947,41 @@ Item {
                         return Theme.withAlpha(root.activeBorderColor, 0);
                     }
 
-                    // dotfiles: small workspace number outside the top-left corner.
-                    StyledText {
+                    // dotfiles: small label outside the top-left corner: the number,
+                    // then the optional icon and name.
+                    Row {
+                        id: workspaceLabel
+                        readonly property var info: root.workspaceMetadata[workspace.workspaceValue] ?? null
+                        readonly property color labelColor: workspace.isSelected ? root.activeBorderColor : Theme.withAlpha(Theme.surfaceText, 0.7)
+
                         anchors.left: parent.left
                         anchors.bottom: parent.top
                         anchors.leftMargin: Theme.spacingXS
                         anchors.bottomMargin: 2
-                        text: workspace.workspaceValue
-                        font.pixelSize: Theme.fontSizeSmall
-                        font.weight: workspace.isSelected ? Font.Bold : Font.Medium
-                        color: workspace.isSelected ? root.activeBorderColor : Theme.withAlpha(Theme.surfaceText, 0.7)
+                        spacing: Theme.spacingXS
+
+                        StyledText {
+                            text: workspace.workspaceValue
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: workspace.isSelected ? Font.Bold : Font.Medium
+                            color: workspaceLabel.labelColor
+                        }
+
+                        DankIcon {
+                            visible: !!workspaceLabel.info?.icon
+                            anchors.verticalCenter: parent.verticalCenter
+                            name: workspaceLabel.info?.icon ?? ""
+                            size: Theme.fontSizeSmall + 2
+                            color: workspaceLabel.labelColor
+                        }
+
+                        StyledText {
+                            visible: !!workspaceLabel.info?.name
+                            text: workspaceLabel.info?.name ?? ""
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: workspace.isSelected ? Font.Bold : Font.Medium
+                            color: workspaceLabel.labelColor
+                        }
                     }
 
                     // dotfiles: press selects; releasing after a small movement is a

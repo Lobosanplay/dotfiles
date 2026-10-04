@@ -97,3 +97,12 @@ WorkspaceOverview = {
         return report(WorkspaceGraph.remove(id))
     end,
 }
+
+-- Workspace names and icons (modules/workspace_metadata.lua).
+WorkspaceOverview.rename = function(id, name)
+    return report(WorkspaceMetadata.set_name(id, name))
+end
+
+WorkspaceOverview.set_icon = function(id, icon)
+    return report(WorkspaceMetadata.set_icon(id, icon))
+end
