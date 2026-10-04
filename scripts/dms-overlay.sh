@@ -63,7 +63,7 @@ while IFS= read -r -d '' file; do
             echo "dms-overlay: WARNING $rel changed upstream; review the override" >&2
         fi
     fi
-done < <(find "$overrides" -type f -name '*.qml' -print0 2>/dev/null)
+done < <(find "$overrides" -type f \( -name '*.qml' -o -name '*.js' \) -print0 2>/dev/null)
 
 rm -rf "$target"
 mv "$build" "$target"

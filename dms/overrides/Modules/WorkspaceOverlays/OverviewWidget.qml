@@ -4,6 +4,7 @@ import Quickshell.Hyprland
 import qs.Common
 import qs.Services
 import qs.Widgets
+import "GraphLayout.js" as GraphLayout
 
 Item {
     id: root
@@ -121,17 +122,12 @@ Item {
     }
 
     // -- dotfiles: graph layout -----------------------------------------
-    // Port of the earlier GTK viewer's layout (git history): the active
-    // workspace sits at (0, 0), its component expands around it by BFS
-    // over left/right/up/down, and disconnected components go to the side
-    // that keeps the largest scale.
+    // The layout itself lives in GraphLayout.js (pure, tested in
+    // tests/layout): the active workspace sits at (0, 0), its component
+    // expands around it by BFS over left/right/up/down, and disconnected
+    // components go to the side that keeps the largest scale.
 
-    readonly property var graphDirections: ({
-            "left": [-1, 0],
-            "right": [1, 0],
-            "up": [0, -1],
-            "down": [0, 1]
-        })
+    readonly property var graphDirections: GraphLayout.DIRECTIONS
     readonly property real graphGapRatio: 0.3 // gap between cells, relative to a cell
     readonly property real componentGap: 0.5 // extra grid cells between components
     readonly property real maxGraphScale: Math.max(SettingsData.overviewScale, 0.3)
@@ -164,117 +160,6 @@ Item {
         return nodes;
     }
 
-    function nearestFreeCell(cell, taken) {
-        for (let radius = 1;; radius++) {
-            for (let dx = -radius; dx <= radius; dx++) {
-                for (let dy = -radius; dy <= radius; dy++) {
-                    if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius)
-                        continue;
-                    if (!taken.has((cell[0] + dx) + "," + (cell[1] + dy)))
-                        return [cell[0] + dx, cell[1] + dy];
-                }
-            }
-        }
-    }
-
-    function layoutComponent(nodes, rootId, visited) {
-        const positions = {};
-        const taken = new Set(["0,0"]);
-        const queue = [rootId];
-        const ids = Object.keys(nodes).map(Number).sort((a, b) => a - b);
-
-        positions[rootId] = [0, 0];
-        visited.add(rootId);
-
-        const place = (id, cell) => {
-            if (taken.has(cell[0] + "," + cell[1]))
-                cell = nearestFreeCell(cell, taken);
-            positions[id] = cell;
-            taken.add(cell[0] + "," + cell[1]);
-            visited.add(id);
-            queue.push(id);
-        };
-
-        while (queue.length > 0) {
-            const current = queue.shift();
-            const [cx, cy] = positions[current];
-
-            for (const direction of Object.keys(nodes[current]).sort()) {
-                const target = nodes[current][direction];
-                if (visited.has(target))
-                    continue;
-                const [dx, dy] = graphDirections[direction];
-                place(target, [cx + dx, cy + dy]);
-            }
-
-            // Also follow connections declared only on the other side.
-            for (const other of ids) {
-                if (visited.has(other))
-                    continue;
-                const links = nodes[other];
-                const direction = Object.keys(links).find(d => links[d] === current);
-                if (direction === undefined)
-                    continue;
-                const [dx, dy] = graphDirections[direction];
-                place(other, [cx - dx, cy - dy]);
-            }
-        }
-
-        return positions;
-    }
-
-    function layoutGraph(nodes, center, aspect, cellAspect) {
-        const ids = Object.keys(nodes).map(Number).sort((a, b) => a - b);
-        if (ids.length === 0)
-            return {};
-        if (nodes[center] === undefined)
-            center = ids[0];
-
-        const visited = new Set();
-        const positions = layoutComponent(nodes, center, visited);
-        const pitchX = 1 + graphGapRatio;
-        const pitchY = cellAspect * (1 + graphGapRatio);
-
-        // Relative scale a bounding box allows, in units of one cell width.
-        const relativeScale = (xs, ys) => Math.min(aspect / ((Math.max(...xs) - Math.min(...xs)) * pitchX + 1), 1 / ((Math.max(...ys) - Math.min(...ys)) * pitchY + cellAspect));
-
-        for (const rootId of ids) {
-            if (visited.has(rootId))
-                continue;
-
-            const comp = layoutComponent(nodes, rootId, visited);
-            const points = Object.values(comp);
-            const minX = Math.min(...points.map(p => p[0]));
-            const minY = Math.min(...points.map(p => p[1]));
-            const compW = Math.max(...points.map(p => p[0])) - minX + 1;
-            const compH = Math.max(...points.map(p => p[1])) - minY + 1;
-
-            const placed = Object.values(positions);
-            const xs = placed.map(p => p[0]);
-            const ys = placed.map(p => p[1]);
-            const midX = -(compW - 1) / 2;
-            const midY = -(compH - 1) / 2;
-
-            // Right, left, below, above; the first wins on ties.
-            const offsets = [[Math.max(...xs) + 1 + componentGap, midY], [Math.min(...xs) - componentGap - compW, midY], [midX, Math.max(...ys) + 1 + componentGap], [midX, Math.min(...ys) - componentGap - compH]];
-
-            let best = offsets[0];
-            let bestScore = -1;
-            for (const offset of offsets) {
-                const score = relativeScale(xs.concat([offset[0], offset[0] + compW - 1]), ys.concat([offset[1], offset[1] + compH - 1]));
-                if (score > bestScore) {
-                    best = offset;
-                    bestScore = score;
-                }
-            }
-
-            for (const key in comp)
-                positions[key] = [comp[key][0] - minX + best[0], comp[key][1] - minY + best[1]];
-        }
-
-        return positions;
-    }
-
     // Largest monitor frame among the shown workspaces, in logical pixels.
     readonly property var maxCellLogical: {
         let width = 1;
@@ -294,7 +179,7 @@ Item {
     readonly property real availableWidth: Math.max((panelWindow.width || monitorPhysicalWidth) - 2 * Theme.spacingL - 96, 1)
     readonly property real availableHeight: Math.max((panelWindow.height || monitorPhysicalHeight) - 100 - 2 * Theme.spacingL - 72, 1)
 
-    readonly property var graphPositions: layoutGraph(graphNodes, monitor?.activeWorkspace?.id ?? -1, availableWidth / availableHeight, maxCellLogical.height / maxCellLogical.width)
+    readonly property var graphPositions: GraphLayout.layoutGraph(graphNodes, monitor?.activeWorkspace?.id ?? -1, availableWidth / availableHeight, maxCellLogical.height / maxCellLogical.width, graphGapRatio, componentGap)
 
     // -- dotfiles: drag & drop --------------------------------------------
     // Dragging a workspace only moves it on screen: per-workspace offsets in
