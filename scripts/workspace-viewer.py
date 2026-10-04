@@ -11,6 +11,7 @@ The state is produced by hypr/modules/workspace_viewer.lua:
 import ctypes.util
 import json
 import os
+import subprocess
 import sys
 from collections import deque
 
@@ -208,6 +209,42 @@ def layout_graph(nodes):
 
 
 # ----------------------------------------------------------------------
+# NAVIGATION
+# ----------------------------------------------------------------------
+
+
+def neighbor(nodes, positions, current, direction):
+    """Workspace reached from `current` by moving in `direction`.
+
+    Graph connections win. Without one, fall back to the nearest node
+    that lies in that direction on screen, so isolated workspaces and
+    other components remain reachable.
+    """
+    target = nodes.get(current, {}).get(direction)
+    if target in positions:
+        return target
+
+    dx, dy = DIRECTIONS[direction]
+    cx, cy = positions[current]
+    best, best_score = None, None
+
+    for node, (x, y) in positions.items():
+        primary = (x - cx) * dx + (y - cy) * dy
+        secondary = abs((x - cx) * dy) + abs((y - cy) * dx)
+
+        # Only consider nodes within a 45 degree cone of the direction.
+        if node == current or primary <= 0 or secondary > primary:
+            continue
+
+        score = (primary + 2 * secondary, node)
+
+        if best_score is None or score < best_score:
+            best, best_score = node, score
+
+    return best
+
+
+# ----------------------------------------------------------------------
 # VIEW
 # ----------------------------------------------------------------------
 
@@ -221,8 +258,7 @@ class GraphView(Gtk.DrawingArea):
         self.edges = edges_of(nodes)
         self.positions = layout_graph(nodes)
 
-        # Reserved for keyboard navigation (arrows + Enter) later on.
-        self.selected = active
+        self.selected = active if active in self.positions else None
 
         cols = max((x for x, _ in self.positions.values()), default=0) + 1
         rows = max((y for _, y in self.positions.values()), default=0) + 1
@@ -236,6 +272,20 @@ class GraphView(Gtk.DrawingArea):
         self.set_content_width(max(graph_w, 220) + 2 * PADDING)
         self.set_content_height(graph_h + HEADER_H + FOOTER_H + 2 * PADDING)
         self.set_draw_func(self.on_draw)
+
+    def move_selection(self, direction):
+        if not self.positions:
+            return
+
+        if self.selected is None:
+            self.selected = min(self.positions)
+        else:
+            target = neighbor(self.nodes, self.positions, self.selected, direction)
+            if target is None:
+                return
+            self.selected = target
+
+        self.queue_draw()
 
     def node_rect(self, node, width):
         col, row = self.positions[node]
@@ -325,11 +375,23 @@ class GraphView(Gtk.DrawingArea):
                 source(1.0)
                 self.draw_text(cr, str(node), x + w / 2, y + h / 2, 13)
 
+            if node == self.selected:
+                ring = 5
+                self.rounded_rect(
+                    cr, x - ring, y - ring, w + 2 * ring, h + 2 * ring, RADIUS + ring
+                )
+                source(0.9)
+                cr.set_line_width(2)
+                cr.stroke()
+
         source(0.7)
         active_label = "—" if self.active is None else str(self.active)
+        footer = f"Active: {active_label}"
+        if self.selected is not None and self.selected != self.active:
+            footer += f"    Selected: {self.selected}"
         self.draw_text(
             cr,
-            f"Active: {active_label}",
+            footer,
             width / 2,
             height - PADDING - FOOTER_H / 2 + 8,
             10,
@@ -373,7 +435,8 @@ class ViewerApp(Gtk.Application):
         # No anchors: the compositor centres the surface on the output,
         # and no exclusive zone means the tiling layout is untouched.
 
-        window.set_child(GraphView(self.nodes, self.active))
+        self.view = GraphView(self.nodes, self.active)
+        window.set_child(self.view)
 
         keys = Gtk.EventControllerKey()
         keys.connect("key-pressed", self.on_key_pressed)
@@ -381,9 +444,35 @@ class ViewerApp(Gtk.Application):
 
         window.present()
 
+    def activate_selected(self):
+        selected = self.view.selected
+
+        if selected is not None and selected != self.active:
+            # Hand the activation back to Hyprland's Lua side, which owns
+            # the workspace graph.
+            subprocess.run(
+                [
+                    "hyprctl",
+                    "dispatch",
+                    f"function() WorkspaceViewer.activate({int(selected)}) end",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+
+        self.quit()
+
     def on_key_pressed(self, _controller, keyval, _keycode, _state):
+        move = self.view.move_selection
         actions = {
             Gdk.KEY_Escape: self.quit,
+            Gdk.KEY_Return: self.activate_selected,
+            Gdk.KEY_KP_Enter: self.activate_selected,
+            Gdk.KEY_Left: lambda: move("left"),
+            Gdk.KEY_Right: lambda: move("right"),
+            Gdk.KEY_Up: lambda: move("up"),
+            Gdk.KEY_Down: lambda: move("down"),
         }
 
         action = actions.get(keyval)

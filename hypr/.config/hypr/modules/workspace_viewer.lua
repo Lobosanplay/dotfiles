@@ -109,6 +109,12 @@ local function toggle()
     end
 end
 
+-- Called by the viewer process (via hyprctl dispatch) when the user
+-- confirms a selection. Activation itself belongs to WorkspaceGraph.
+local function activate(id)
+    WorkspaceGraph.activate(tonumber(id))
+end
+
 --------------------------------------------------
 -- PUBLIC API
 --------------------------------------------------
@@ -117,4 +123,5 @@ WorkspaceViewer = {
     open = open,
     close = close,
     toggle = toggle,
+    activate = activate,
 }
