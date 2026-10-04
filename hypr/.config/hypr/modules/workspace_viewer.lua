@@ -60,14 +60,21 @@ local function build_state_json()
 
     local active = WorkspaceGraph.get_active_workspace()
     local active_json = "null"
+    local monitor_json = "null"
 
     if active and active.id then
         active_json = string.format("%d", active.id)
     end
 
+    -- The viewer opens on the monitor that shows the active workspace.
+    if active and active.monitor and active.monitor.name then
+        monitor_json = string.format("%q", active.monitor.name)
+    end
+
     return string.format(
-        '{"active":%s,"workspaces":{%s}}',
+        '{"active":%s,"monitor":%s,"workspaces":{%s}}',
         active_json,
+        monitor_json,
         table.concat(node_parts, ",")
     )
 end
@@ -96,8 +103,8 @@ local function close()
 end
 
 local function open()
-    -- The JSON only contains digits, braces and quoted direction names,
-    -- so single quotes are safe here.
+    -- The JSON only contains digits, braces, quoted direction names and
+    -- the monitor connector name (e.g. eDP-1), so single quotes are safe.
     hl.exec_cmd(
         "python3 '" .. viewer_script .. "' '" .. build_state_json() .. "'"
     )
