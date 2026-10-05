@@ -4,12 +4,13 @@
 
 | Component | Responsibility |
 | --- | --- |
-| DMS | Selects and renders wallpapers; triggers its existing Matugen workflow. |
+| DMS | Selects and renders wallpapers; Dynamic theme mode triggers its existing Matugen workflow. |
 | Matugen | Produces one wallpaper-derived palette for DMS built-in and user templates. |
 | Semantic theme contract | Defines stable color role names and validates the dynamic color overlay against contract v2. |
-| Promotion hook | Validates the generated candidate and atomically updates the last-known-good runtime overlay. |
+| Promotion hook | Validates the candidate, atomically updates the last-known-good JSON and Lua consumer, and applies Hyprland colors through `hyprctl eval` when the active config has the bridge. |
 | Graphite Slate | Static fallback used by repository-managed theme consumers when no valid wallpaper palette is available. |
-| Hyprland | Uses the committed Graphite Slate module as fallback and loads DMS-generated border colors when present. |
+| Hyprland | Uses Graphite Slate as fallback and the validated semantic projection for dynamic borders. |
+| DMS, DankBar, GTK, Kitty | Consume DMS's native outputs from that same Matugen generation. |
 
 ## Data flow
 
@@ -17,7 +18,7 @@
 DMS wallpaper selection / wallpaper change
                   │
                   ▼
-       DMS Matugen generation (single run)
+       DMS Matugen generation (single run, Dynamic theme mode)
           ┌───────┴────────┐
           ▼                ▼
    DMS built-in       user template
@@ -25,9 +26,15 @@ DMS wallpaper selection / wallpaper change
                            ▼
                  dynamic-colors.pending.json
                            │
-                 validate + atomic replace
+          validate + atomic promotion
                            ▼
        ~/.local/state/hyprland/dynamic-colors.json
+                           │
+            render atomic Lua module
+                           │
+             hyprctl eval (no reload)
+                           ▼
+                     Hyprland
 ```
 
 The user template uses Material color roles for surfaces, text, accents, and
@@ -38,13 +45,17 @@ treating it as a complete theme preset.
 
 ## Failure and fallback behavior
 
-- **Matugen or wallpaper input fails:** the post-hook does not promote a new
-  overlay; the last-known-good file remains unchanged.
+- **Matugen or wallpaper input fails:** the post-hook does not run; the
+  last-known-good JSON and Lua module remain unchanged. DMS retains its
+  currently applied palette.
 - **Generated JSON or color roles are invalid:** validation fails before
-  replacement; the existing overlay remains unchanged.
-- **No dynamic overlay exists:** current Hyprland continues using the
-  committed Graphite Slate token module. Future consumers must use that same
-  static preset as their fallback.
+  promotion; the existing overlay and Lua module remain unchanged.
+- **No dynamic overlay exists:** the optional dynamic Lua module is absent and
+  Hyprland uses Graphite Slate values from its appearance configuration.
+- **The semantic bridge cannot apply live:** DMS's native generation remains
+  successful; the Lua consumer is retained for the next normal Hyprland
+  configuration load. Current live Hyprland borders remain at their prior
+  values until then.
 - **DMS user templates are disabled or the package is not linked:** no new
   overlay is generated. DMS's own wallpaper and built-in Matugen outputs are
   unaffected.
@@ -67,9 +78,12 @@ project does not replace or alter DMS's wallpaper renderer.
 
 The candidate is written outside the consumer path. The promotion script
 validates schema version, exact role sets, opaque hex values, and text contrast,
-then writes a temporary file beside the destination and uses `os.replace`.
-No separate Matugen process, polling loop, wallpaper daemon, or Hyprland reload
-is introduced.
+then writes temporary files beside each destination and uses `os.replace`.
+It renders only fixed Hyprland settings from validated hex values and applies
+them through one `hyprctl eval` call. The script checks that the active config
+loads the bridge and that a Hyprland instance is present before applying. No
+separate Matugen process, polling loop, wallpaper daemon, or Hyprland reload is
+introduced.
 
 The repository package is linked at `~/.config/matugen` (that path was absent
 before Phase 19). Keep DMS's **Run User Templates** option enabled. The link
@@ -85,7 +99,9 @@ entry into it instead.
 
 ## Deliberate boundary
 
-This phase exports and validates the dynamic colors. It does not apply them to
-the active Hyprland session, reload Hyprland, change DMS's theme mode, or
-configure DankBar. Those consumers can be wired in later phases after the
-active and repository configuration paths are reconciled.
+The semantic JSON is a projection of DMS's single Matugen run, not a second
+palette authority. DMS's Dynamic theme mode feeds its native DMS/DankBar/GTK/
+Kitty outputs; the semantic projection feeds Hyprland after validation. The
+active and versioned Hyprland files remain separate, and live application is
+skipped unless the active config explicitly loads the bridge. This avoids
+rewriting user configuration or reloading Hyprland from the Matugen hook.

@@ -17,7 +17,6 @@ PRESET_PATH = ROOT / "dms/presets/dankbar-43pr.json"
 THEME_SOURCE = ROOT / "dms/themes/graphite-slate/theme.json"
 THEME_DIR_NAME = "dotfiles-graphite-slate"
 DMS_SETTING_DEFAULTS = {
-    "currentThemeCategory": "generic",
     "showWorkspaceName": False,
     "showWorkspacePadding": False,
     "showWorkspaceApps": False,

@@ -1,8 +1,8 @@
 {
   "description": "Compact muted DankBar profile inspired by 43PR, using only native DMS widgets.",
   "settings": {
-    "currentThemeName": "custom",
-    "currentThemeCategory": "generic",
+    "currentThemeName": "dynamic",
+    "currentThemeCategory": "dynamic",
     "matugenScheme": "scheme-neutral",
     "showWorkspaceIndex": true,
     "showWorkspaceName": false,

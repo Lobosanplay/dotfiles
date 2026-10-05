@@ -55,31 +55,36 @@ and migration notes.
 ## Matugen and DMS
 
 DMS owns wallpaper selection/rendering and starts the existing Matugen
-generation flow. Its built-in templates continue to produce outputs such as
-`~/.config/hypr/dms/colors.lua`, GTK styles, and Kitty colors. The repository
-adds one DMS user template that consumes that same Matugen render and emits a
-color-only semantic overlay at
-`~/.local/state/hyprland/dynamic-colors.json`. It does not invoke Matugen or
-replace any DMS output. A post-hook validates the candidate and promotes it
-atomically; invalid candidates leave the last valid overlay untouched.
+generation flow in Dynamic theme mode. Its built-in templates continue to
+produce outputs such as `~/.config/hypr/dms/colors.lua`, GTK styles, and Kitty
+colors. DMS/Matugen also runs the repository's user template from the same
+generation and emits a color-only semantic overlay at
+`~/.local/state/hyprland/dynamic-colors.json`. The post-hook validates and
+atomically promotes that overlay, then renders an owned Lua consumer and uses
+the public Hyprland `hyprctl eval` interface for immediate application. It
+does not invoke Matugen again, overwrite DMS output, or reload Hyprland.
 
 The overlay is separate from the authored Graphite Slate preset and from the
-generated `theme_tokens.lua`. The static preset remains the fallback and
-continues to feed the repository-managed Hyprland appearance. The active
-Hyprland setup also loads DMS's generated `dms.colors.lua` when present, which
-provides wallpaper-derived border colors. Future consumers should use the
-dynamic overlay only after validation and otherwise fall back to Graphite
-Slate. See [wallpaper-theme.md](wallpaper-theme.md) and
-`docs/phases/19-wallpaper-dynamic-theme.md` for the full lifecycle.
+generated `theme_tokens.lua`. Graphite Slate remains Hyprland's static
+fallback. Hyprland uses the validated semantic projection for wallpaper-based
+border colors; DMS, DankBar, GTK, and Kitty use DMS's native outputs from the
+same Matugen run. The project no longer loads DMS's independent
+`dms.colors.lua` into Hyprland, avoiding two competing writers for border
+colors. See [wallpaper-theme.md](wallpaper-theme.md) and
+`docs/phases/22-live-dynamic-theme.md` for the runtime lifecycle.
 
 ## Current consumers and boundaries
 
-Hyprland consumes the generated Lua color mapping. DMS consumes the generated
-custom theme through its supported `customThemeFile` setting; the profile
-applier selects it. DMS continues to own its component typography and icons:
+Hyprland consumes static Graphite Slate through the generated Lua token module
+and overrides its border roles with a generated module only when the validated
+dynamic overlay exists. DMS is configured for its native Dynamic theme mode;
+the Graphite Slate custom theme remains installed and can be selected manually
+as a static alternative. DMS continues to own its component typography and icons:
 its bundled Inter and Material Symbols already match the selected UI family
 and icon provider, but individual native widget glyphs are not remapped through
 the repository's alias table. GTK continues to use system font and icon-theme
-settings. Kitty continues to resolve its unspecified `monospace` family
-through Fontconfig. The dynamic Matugen overlay remains an export only; this
-consumer uses the static Graphite Slate preset as its fallback.
+settings while its colors come from DMS/Matugen. Kitty continues to resolve
+its unspecified `monospace` family through Fontconfig and uses the
+DMS-generated color file. The semantic dynamic overlay is consumed by
+Hyprland after schema and contrast validation; it is not a second generator
+for GTK, Kitty, or DMS.

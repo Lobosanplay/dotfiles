@@ -49,6 +49,8 @@ class DankBarPresetTests(unittest.TestCase):
         self.assertTrue(result["barConfigs"][0]["island"])
         self.assertEqual(result["barConfigs"][0]["centerWidgets"], ["clock"])
         self.assertEqual(result["matugenScheme"], "scheme-neutral")
+        self.assertEqual(result["currentThemeName"], "dynamic")
+        self.assertEqual(result["currentThemeCategory"], "dynamic")
         self.assertEqual(result["barConfigs"][0]["transparency"], 0.74)
         self.assertEqual(result["barConfigs"][0]["widgetTransparency"], 0.92)
         self.assertEqual(
