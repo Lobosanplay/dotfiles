@@ -1,0 +1,6 @@
+[config]
+
+[templates.dotfiles_semantic_colors]
+input_path = '~/.config/matugen/templates/dynamic-colors.json.tmpl'
+output_path = '~/.cache/DankMaterialShell/dynamic-colors.pending.json'
+post_hook = 'python3 "$HOME/dotfiles/scripts/promote_dynamic_theme.py" --candidate "$HOME/.cache/DankMaterialShell/dynamic-colors.pending.json" --output "$HOME/.local/state/hyprland/dynamic-colors.json"'

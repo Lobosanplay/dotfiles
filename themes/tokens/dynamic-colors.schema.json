@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DMS Matugen semantic color overlay",
+  "description": "Runtime color override for semantic theme contract v2. Typography and iconography continue to come from the selected static preset.",
+  "$ref": "schema.json#/$defs/dynamicColorOverlay"
+}

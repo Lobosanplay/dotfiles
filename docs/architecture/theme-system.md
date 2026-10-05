@@ -51,20 +51,24 @@ and migration notes.
 
 ## Matugen and DMS
 
-DMS already owns the live wallpaper-driven Matugen workflow. Its current
-generated files include `~/.config/hypr/dms/colors.lua`, GTK styles, and Kitty
-colors. `modules/dms.lua` loads `dms.colors` after `modules/appearance.lua`, so
-DMS remains authoritative for generated active and inactive window/group
-borders when its colors module exists. The semantic preset supplies the
-project's stable Hyprland defaults, including the shadow color, and fallback
-border values. It does not replace DMS's generated wallpaper palette.
+DMS owns wallpaper selection/rendering and starts the existing Matugen
+generation flow. Its built-in templates continue to produce outputs such as
+`~/.config/hypr/dms/colors.lua`, GTK styles, and Kitty colors. The repository
+adds one DMS user template that consumes that same Matugen render and emits a
+color-only semantic overlay at
+`~/.local/state/hyprland/dynamic-colors.json`. It does not invoke Matugen or
+replace any DMS output. A post-hook validates the candidate and promotes it
+atomically; invalid candidates leave the last valid overlay untouched.
 
-This phase intentionally adds no second Matugen config or user template and
-does not invoke DMS generation. The installed `dms matugen` reports GTK,
-Hyprland, and Kitty integration as detected, and its existing generated
-outputs remain in control. A later integration can map Matugen's generated
-roles into this semantic contract once that can be done without competing
-with DMS's own outputs.
+The overlay is separate from the authored Graphite Blue preset and from the
+generated `theme_tokens.lua`. The static preset remains the fallback and
+continues to feed the current Hyprland appearance. No automatic reload or
+runtime application of the overlay is wired into Hyprland yet: the active
+configuration differs from the repository version, and a reliable live
+application path needs its own validation. Future consumers should use the
+dynamic overlay only after validation and otherwise fall back to Graphite
+Blue. See [wallpaper-theme.md](wallpaper-theme.md) and
+`docs/phases/19-wallpaper-dynamic-theme.md` for the full lifecycle.
 
 ## Current consumers and boundaries
 

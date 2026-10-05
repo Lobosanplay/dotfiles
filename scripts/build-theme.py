@@ -18,24 +18,28 @@ TEMPLATE_PATH = ROOT / "themes/templates/hyprland-theme.lua.tmpl"
 OUTPUT_PATH = ROOT / "hypr/.config/hypr/modules/theme_tokens.lua"
 COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 PLACEHOLDER_RE = re.compile(r"@@([a-z_]+\.[a-z_]+?)(?:_(hex))?@@")
+REQUIRED_TOKEN_GROUPS = {
+    "surfaces": {"background", "surface", "surface_variant", "surface_elevated"},
+    "text": {"primary", "secondary", "muted", "disabled"},
+    "accents": {"primary", "secondary", "selection", "focus"},
+    "semantic": {"success", "warning", "error", "info"},
+    "borders": {"default", "subtle"},
+}
 
 
 def read_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read {path.relative_to(ROOT)}: {exc}") from exc
+        try:
+            display_path = path.relative_to(ROOT)
+        except ValueError:
+            display_path = path
+        raise ValueError(f"cannot read {display_path}: {exc}") from exc
 
 
 def validate_theme(preset: Any, schema: Any) -> list[str]:
     errors: list[str] = []
-    required_groups = {
-        "surfaces": {"background", "surface", "surface_variant", "surface_elevated"},
-        "text": {"primary", "secondary", "muted", "disabled"},
-        "accents": {"primary", "secondary", "selection", "focus"},
-        "semantic": {"success", "warning", "error", "info"},
-        "borders": {"default", "subtle"},
-    }
 
     if not isinstance(preset, dict):
         return ["preset root must be a JSON object"]
@@ -52,11 +56,11 @@ def validate_theme(preset: Any, schema: Any) -> list[str]:
         errors.append("mode must be 'dark' for schema version 1")
 
     tokens = preset.get("tokens")
-    if not isinstance(tokens, dict) or set(tokens) != set(required_groups):
-        errors.append(f"tokens must contain exactly: {', '.join(required_groups)}")
+    if not isinstance(tokens, dict) or set(tokens) != set(REQUIRED_TOKEN_GROUPS):
+        errors.append(f"tokens must contain exactly: {', '.join(REQUIRED_TOKEN_GROUPS)}")
         tokens = tokens if isinstance(tokens, dict) else {}
 
-    for group, required in required_groups.items():
+    for group, required in REQUIRED_TOKEN_GROUPS.items():
         values = tokens.get(group)
         if not isinstance(values, dict) or set(values) != required:
             errors.append(f"tokens.{group} must contain exactly: {', '.join(sorted(required))}")
@@ -76,11 +80,11 @@ def validate_theme(preset: Any, schema: Any) -> list[str]:
             errors.append("schema does not describe schema_version 2")
         token_schema = schema_properties.get("tokens", {})
         token_properties = token_schema.get("properties", {})
-        if set(token_properties) != set(required_groups):
+        if set(token_properties) != set(REQUIRED_TOKEN_GROUPS):
             errors.append("schema token groups do not match the validator contract")
-        if set(token_schema.get("required", [])) != set(required_groups):
+        if set(token_schema.get("required", [])) != set(REQUIRED_TOKEN_GROUPS):
             errors.append("schema must require every semantic token group")
-        for group, roles in required_groups.items():
+        for group, roles in REQUIRED_TOKEN_GROUPS.items():
             group_schema = token_properties.get(group, {})
             if set(group_schema.get("required", [])) != roles:
                 errors.append(f"schema required roles do not match tokens.{group}")
@@ -93,6 +97,12 @@ def validate_theme(preset: Any, schema: Any) -> list[str]:
         iconography_schema = schema_properties.get("iconography", {})
         if set(iconography_schema.get("required", [])) != {"provider", "family", "source", "symbol_format", "api", "aliases", "fallback"}:
             errors.append("schema icon roles do not match the preset contract")
+        overlay_schema = schema.get("$defs", {}).get("dynamicColorOverlay", {})
+        if set(overlay_schema.get("required", [])) != {"schema_version", "source", "mode", "tokens"}:
+            errors.append("schema dynamic color overlay does not match the runtime contract")
+        overlay_tokens = overlay_schema.get("properties", {}).get("tokens", {}).get("properties", {})
+        if set(overlay_tokens) != set(REQUIRED_TOKEN_GROUPS):
+            errors.append("schema dynamic overlay groups do not match the semantic contract")
     else:
         errors.append("schema root must be a JSON object")
 
@@ -282,9 +292,18 @@ def main() -> int:
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--write", action="store_true", help="render the generated Hyprland Lua module")
     action.add_argument("--check", action="store_true", help="validate inputs and check generated output is current")
+    action.add_argument("--check-dynamic", metavar="FILE", help="validate a Matugen semantic color overlay")
     args = parser.parse_args()
 
     try:
+        if args.check_dynamic:
+            dynamic = read_json(Path(args.check_dynamic).resolve())
+            errors = validate_dynamic_theme(dynamic)
+            if errors:
+                raise ValueError("invalid dynamic theme:\n- " + "\n- ".join(errors))
+            print("dynamic semantic color overlay is valid")
+            return 0
+
         rendered = load_and_render()
         if args.write:
             OUTPUT_PATH.write_text(rendered, encoding="utf-8")
@@ -299,6 +318,45 @@ def main() -> int:
     except (OSError, ValueError) as exc:
         print(exc, file=sys.stderr)
         return 1
+
+
+def validate_dynamic_theme(theme: Any) -> list[str]:
+    """Validate the color-only overlay emitted by the DMS Matugen template."""
+    if not isinstance(theme, dict) or set(theme) != {"schema_version", "source", "mode", "tokens"}:
+        return ["dynamic theme must contain exactly schema_version, source, mode, and tokens"]
+
+    errors: list[str] = []
+    if theme["schema_version"] != 2:
+        errors.append("schema_version must match the semantic theme contract version 2")
+    if theme["source"] != "dms-matugen":
+        errors.append("source must be dms-matugen")
+    if theme["mode"] != "dark":
+        errors.append("mode must be dark")
+
+    tokens = theme["tokens"]
+    if not isinstance(tokens, dict) or set(tokens) != set(REQUIRED_TOKEN_GROUPS):
+        return errors + ["tokens must contain exactly the semantic color groups"]
+
+    for group, required in REQUIRED_TOKEN_GROUPS.items():
+        values = tokens[group]
+        if not isinstance(values, dict) or set(values) != required:
+            errors.append(f"tokens.{group} must contain exactly: {', '.join(sorted(required))}")
+            continue
+        for role, value in values.items():
+            if not isinstance(value, str) or not COLOR_RE.fullmatch(value):
+                errors.append(f"tokens.{group}.{role} must be opaque #RRGGBB")
+
+    if not errors:
+        background = tokens["surfaces"]["background"]
+        text = tokens["text"]
+        if contrast_ratio(text["primary"], background) < 7.0:
+            errors.append("tokens.text.primary must have at least 7:1 contrast against the background")
+        if contrast_ratio(text["secondary"], background) < 4.5:
+            errors.append("tokens.text.secondary must have at least 4.5:1 contrast against the background")
+        if contrast_ratio(text["muted"], background) < 3.0:
+            errors.append("tokens.text.muted must have at least 3:1 contrast against the background")
+
+    return errors
 
 
 if __name__ == "__main__":

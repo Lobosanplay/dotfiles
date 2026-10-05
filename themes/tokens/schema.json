@@ -146,6 +146,43 @@
     }
   },
   "$defs": {
+    "dynamicColorOverlay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "source", "mode", "tokens"],
+      "properties": {
+        "schema_version": { "const": 2 },
+        "source": { "const": "dms-matugen" },
+        "mode": { "const": "dark" },
+        "tokens": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["surfaces", "text", "accents", "semantic", "borders"],
+          "properties": {
+            "surfaces": {
+              "$ref": "#/$defs/colorGroup",
+              "required": ["background", "surface", "surface_variant", "surface_elevated"]
+            },
+            "text": {
+              "$ref": "#/$defs/colorGroup",
+              "required": ["primary", "secondary", "muted", "disabled"]
+            },
+            "accents": {
+              "$ref": "#/$defs/colorGroup",
+              "required": ["primary", "secondary", "selection", "focus"]
+            },
+            "semantic": {
+              "$ref": "#/$defs/colorGroup",
+              "required": ["success", "warning", "error", "info"]
+            },
+            "borders": {
+              "$ref": "#/$defs/colorGroup",
+              "required": ["default", "subtle"]
+            }
+          }
+        }
+      }
+    },
     "fontFamily": {
       "type": "object",
       "additionalProperties": false,
