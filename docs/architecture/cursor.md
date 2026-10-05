@@ -10,11 +10,18 @@ Lua module `~/.config/hypr/dms/cursor.lua`, applies the cursor immediately with
 exports both `HYPRCURSOR_*` and `XCURSOR_*` values so native Wayland and
 XWayland consumers can use the selected theme and size.
 
-The repository's `hyprland.lua` sets size 24 as a fallback before loading
+The repository's `hyprland.lua` sets size 36 as a fallback before loading
 `modules.dms`. That module optionally loads `dms.cursor`, allowing persisted
 DMS preferences to take precedence. On a fresh machine without generated DMS
 state, the fallback remains available. Do not edit `dms/cursor.lua` directly;
 DMS regenerates it from its settings.
+
+DMS currently stores `Frieren-Winter` at size 36. The Xcursor assets are
+installed under `~/.icons/Frieren-Winter`; a matching Hyprcursor theme is
+installed under `~/.local/share/icons/Frieren-Winter`. The Hyprcursor theme
+contains 24 px and 36 px images so Hyprland can load the compositor-native
+cursor at 24 logical px when accounting for the machine's 1.5 maximum output
+scale. Both theme installations are machine-local and are not versioned.
 
 At Hyprland startup, the existing startup hook calls
 `dbus-update-activation-environment --systemd --all` so the compositor's
@@ -34,6 +41,21 @@ logical size. There is no per-application override in the project.
 The custom `Frieren-Winter` theme is installed under `~/.icons`, which is
 machine-local and is not included in the repository. A fresh setup must install
 that theme separately or select an available theme in DMS.
+
+## Legacy Xcursor and Flatpak fallback
+
+The user-local `~/.icons/default/index.theme` inherits `Frieren-Winter` so
+legacy Xcursor clients that request the default theme resolve to the selected
+cursor. Flatpak user overrides grant read-only access to `~/.icons` and export
+`XCURSOR_THEME=Frieren-Winter`, `XCURSOR_SIZE=36`, and a search path containing
+the user theme directory. These are machine-local runtime settings and are
+not managed by the repository. Newly launched applications pick up the
+settings; already-running XWayland clients may need to be restarted.
+
+Application backend selection remains per application. Use native Wayland when
+the app supports it and behaves correctly; keep XWayland available for legacy
+or incompatible apps. Cursor consistency does not require forcing every
+application onto the same backend.
 
 ## Validation boundary
 
