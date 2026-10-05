@@ -16,6 +16,15 @@
 -- Create your files separately and then require them like this:
 -- require("myColors")
 
+-------------------------------
+---- ENVIRONMENT VARIABLES ----
+-------------------------------
+
+-- Defaults apply when DMS has not generated a cursor configuration.
+-- See https://wiki.hypr.land/Configuring/Advanced-and-Cool/Environment-variables/
+hl.env("XCURSOR_SIZE", "24")
+hl.env("HYPRCURSOR_SIZE", "24")
+
 require("modules.monitors")
 require("modules.appearance")
 require("modules.animations")
@@ -62,12 +71,6 @@ local menu        = "hyprlauncher"
 -------------------------------
 ---- ENVIRONMENT VARIABLES ----
 -------------------------------
-
--- See https://wiki.hypr.land/Configuring/Advanced-and-Cool/Environment-variables/
-
-hl.env("XCURSOR_SIZE", "24")
-hl.env("HYPRCURSOR_SIZE", "24")
-
 
 -----------------------
 ----- PERMISSIONS -----

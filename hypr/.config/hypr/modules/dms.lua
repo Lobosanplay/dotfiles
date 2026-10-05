@@ -22,6 +22,10 @@ end
 -- the Graphite Slate static fallback.
 optional_require("dms.dotfiles_theme")
 
+-- DMS persists cursor settings in this generated module. It is absent on a
+-- fresh setup, where Hyprland's defaults remain in effect.
+optional_require("dms.cursor")
+
 -- DMS surfaces handle their own animations.
 hl.layer_rule({ match = { namespace = "^(quickshell)$" }, no_anim = true })
 hl.layer_rule({ match = { namespace = "^dms:.*" }, no_anim = true })
