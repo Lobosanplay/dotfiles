@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the semantic theme preset and render its Hyprland Lua module."""
+"""Validate the semantic theme preset and render component theme outputs."""
 
 from __future__ import annotations
 
@@ -16,6 +16,8 @@ PRESET_PATH = ROOT / "themes/presets/default.json"
 SCHEMA_PATH = ROOT / "themes/tokens/schema.json"
 TEMPLATE_PATH = ROOT / "themes/templates/hyprland-theme.lua.tmpl"
 OUTPUT_PATH = ROOT / "hypr/.config/hypr/modules/theme_tokens.lua"
+DMS_TEMPLATE_PATH = ROOT / "themes/templates/dms-theme.json.tmpl"
+DMS_OUTPUT_PATH = ROOT / "dms/themes/graphite-blue/theme.json"
 COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 PLACEHOLDER_RE = re.compile(r"@@([a-z_]+\.[a-z_]+?)(?:_(hex))?@@")
 REQUIRED_TOKEN_GROUPS = {
@@ -246,6 +248,31 @@ def render_theme(preset: dict[str, Any], template: str) -> str:
     return rendered
 
 
+def render_dms_theme(preset: dict[str, Any], template: str) -> str:
+    flat = {
+        f"{group}.{key}": value
+        for group, values in preset["tokens"].items()
+        for key, value in values.items()
+    }
+    rendered = template.replace("@@theme_name_json@@", json.dumps(preset["name"]))
+
+    def substitute(match: re.Match[str]) -> str:
+        key = match.group(1)
+        as_hex = match.group(2)
+        try:
+            value = flat[key]
+        except KeyError as exc:
+            raise ValueError(f"DMS theme template references missing token: {key}") from exc
+        return value[1:] if as_hex else value
+
+    rendered = PLACEHOLDER_RE.sub(substitute, rendered)
+    if "@@" in rendered:
+        raise ValueError("DMS theme template contains an unsupported or unresolved placeholder")
+    # Validate that the template remains valid JSON before writing it.
+    json.loads(rendered)
+    return rendered
+
+
 def lua_literal(value: Any, indent: int = 0) -> str:
     if isinstance(value, str):
         return json.dumps(value, ensure_ascii=False)
@@ -305,15 +332,24 @@ def main() -> int:
             return 0
 
         rendered = load_and_render()
+        preset = read_json(PRESET_PATH)
+        dms_rendered = render_dms_theme(preset, DMS_TEMPLATE_PATH.read_text(encoding="utf-8"))
         if args.write:
             OUTPUT_PATH.write_text(rendered, encoding="utf-8")
+            DMS_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+            DMS_OUTPUT_PATH.write_text(dms_rendered, encoding="utf-8")
             print(f"generated {OUTPUT_PATH.relative_to(ROOT)}")
+            print(f"generated {DMS_OUTPUT_PATH.relative_to(ROOT)}")
             return 0
         current = OUTPUT_PATH.read_text(encoding="utf-8")
         if current != rendered:
             print(f"{OUTPUT_PATH.relative_to(ROOT)} is missing or out of date; run scripts/build-theme.py --write", file=sys.stderr)
             return 1
-        print("theme contract valid; generated Hyprland tokens are current")
+        current_dms = DMS_OUTPUT_PATH.read_text(encoding="utf-8")
+        if current_dms != dms_rendered:
+            print(f"{DMS_OUTPUT_PATH.relative_to(ROOT)} is missing or out of date; run scripts/build-theme.py --write", file=sys.stderr)
+            return 1
+        print("theme contract valid; generated Hyprland and DMS theme outputs are current")
         return 0
     except (OSError, ValueError) as exc:
         print(exc, file=sys.stderr)

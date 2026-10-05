@@ -35,6 +35,11 @@ the `material:` prefix. Reuse the semantic aliases in the preset and avoid
 scattering Unicode code points in QML. DMS also bundles FiraCode Nerd Font for
 specialized file-type glyphs; that is not the general shell icon API.
 
+Native DankBar widgets currently own their Material Symbols names internally;
+the DMS bar settings do not expose a per-widget alias mapping. The shared
+aliases remain the contract for project-owned QML consumers and are not
+duplicated into a parallel glyph configuration for native widgets.
+
 GTK and file/application icons continue to use the user's system icon theme.
 Material Symbols are not a replacement for a complete desktop icon theme.
 

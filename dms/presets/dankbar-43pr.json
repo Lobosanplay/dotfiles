@@ -1,0 +1,42 @@
+{
+  "description": "Compact three-group DankBar profile inspired by 43PR, using only native DMS widgets.",
+  "settings": {
+    "currentThemeName": "custom",
+    "currentThemeCategory": "generic",
+    "showWorkspaceIndex": true,
+    "showWorkspaceName": false,
+    "showWorkspacePadding": false,
+    "showWorkspaceApps": false,
+    "workspaceScrolling": false,
+    "workspaceColorMode": "primary",
+    "workspaceOccupiedColorMode": "secondary",
+    "workspaceUnfocusedColorMode": "default",
+    "workspaceUrgentColorMode": "default",
+    "workspaceFocusedBorderEnabled": true,
+    "workspaceFocusedBorderColor": "primary",
+    "bar": {
+      "id": "default",
+      "leftWidgets": [
+        { "id": "launcherButton", "enabled": true },
+        { "id": "workspaceSwitcher", "enabled": true }
+      ],
+      "centerWidgets": ["clock"],
+      "rightWidgets": [
+        { "id": "systemTray", "enabled": true },
+        { "id": "battery", "enabled": true },
+        { "id": "notificationButton", "enabled": true },
+        { "id": "controlCenterButton", "enabled": true }
+      ],
+      "spacing": 4,
+      "innerPadding": 2,
+      "widgetPadding": 5,
+      "transparency": 0.9,
+      "widgetTransparency": 1.0,
+      "fontScale": 0.9,
+      "iconScale": 0.9,
+      "squareCorners": false,
+      "noBackground": false,
+      "scrollEnabled": false
+    }
+  }
+}

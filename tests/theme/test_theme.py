@@ -85,6 +85,23 @@ class ThemeContractTests(unittest.TestCase):
         self.assertIn('primary = "Inter Variable"', first)
         self.assertIn('["AppIconRenderer.iconValue"] = "material:<ligature-name>"', first)
 
+    def test_dms_theme_output_maps_semantic_roles_and_is_valid_json(self):
+        template = (ROOT / "themes/templates/dms-theme.json.tmpl").read_text()
+        rendered = build_theme.render_dms_theme(self.preset, template)
+        theme = json.loads(rendered)
+        tokens = self.preset["tokens"]
+        self.assertEqual(theme["name"], self.preset["name"])
+        self.assertEqual(theme["primary"], tokens["accents"]["primary"])
+        self.assertEqual(theme["surfaceText"], tokens["text"]["primary"])
+        self.assertEqual(theme["outlineVariant"], tokens["borders"]["subtle"])
+        self.assertEqual(theme["error"], tokens["semantic"]["error"])
+        self.assertNotIn("@@", rendered)
+
+    def test_checked_in_dms_theme_matches_contract(self):
+        template = (ROOT / "themes/templates/dms-theme.json.tmpl").read_text()
+        expected = build_theme.render_dms_theme(self.preset, template)
+        self.assertEqual((ROOT / "dms/themes/graphite-blue/theme.json").read_text(), expected)
+
     def test_checked_in_generated_module_matches_preset(self):
         self.assertEqual(
             (ROOT / "hypr/.config/hypr/modules/theme_tokens.lua").read_text(),

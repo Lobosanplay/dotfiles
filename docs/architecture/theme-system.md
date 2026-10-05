@@ -13,23 +13,26 @@ The current generation path is:
 ```text
 themes/presets/default.json
         + themes/tokens/schema.json
-        + themes/templates/hyprland-theme.lua.tmpl
+        + component templates
                     │
                     ▼
           scripts/build-theme.py
-                    │
-                    ▼
-hypr/.config/hypr/modules/theme_tokens.lua
-                    │
-                    ▼
-hypr/.config/hypr/modules/appearance.lua
+             ┌──────┴──────┐
+             ▼             ▼
+      Hyprland Lua    DMS custom theme
+             │             │
+      appearance.lua  DankBar and DMS UI
 ```
 
 The generated Lua module is committed so Hyprland can load the configuration
 without running a generator during startup. It contains all preset token
 groups; Hyprland currently consumes its color mapping. After changing the
-preset or its template, run `python3 scripts/build-theme.py --write`; use
-`--check` to detect stale generated output.
+preset or a component template, run `python3 scripts/build-theme.py --write`;
+use `--check` to detect stale generated output. The DMS theme output translates
+the same semantic roles to DMS's native custom-theme color names. A small
+profile applier selects that theme and configures the existing DankBar without
+adding a Quickshell shell or copying DMS components. It preserves unrelated
+DMS settings and creates a one-time settings backup before applying.
 
 ## Semantic token contract
 
@@ -72,11 +75,13 @@ Blue. See [wallpaper-theme.md](wallpaper-theme.md) and
 
 ## Current consumers and boundaries
 
-Hyprland is the first repository-managed consumer of the generated module.
-DMS already bundles and uses Inter Variable, FiraCode Nerd Font, and Material
-Symbols Rounded; the selected token roles record those defaults and the
-system fallbacks. GTK continues to use system font and icon-theme settings.
-Kitty continues to resolve its unspecified `monospace` family through
-Fontconfig. Phase 18 documents the distinction between the shared contract
-and the existing component settings; it does not introduce another font or
-icon generator.
+Hyprland consumes the generated Lua color mapping. DMS consumes the generated
+custom theme through its supported `customThemeFile` setting; the profile
+applier selects it. DMS continues to own its component typography and icons:
+its bundled Inter and Material Symbols already match the selected UI family
+and icon provider, but individual native widget glyphs are not remapped through
+the repository's alias table. GTK continues to use system font and icon-theme
+settings. Kitty continues to resolve its unspecified `monospace` family
+through Fontconfig. The dynamic Matugen overlay remains an export only; this
+consumer uses the static Graphite Blue preset until a later live-application
+phase.
