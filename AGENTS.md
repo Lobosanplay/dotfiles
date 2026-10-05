@@ -156,7 +156,7 @@ For each new phase:
 7. Create a dedicated commit.
 8. Revalidate after committing.
 
-The next planned phase is **Phase 17 — Theme Foundation**, responsible for implementing and documenting the base theme system. Do not implement Phase 17 as part of unrelated work.
+Use the phase explicitly requested by the user and its current scope document. Do not infer a phase from stale roadmap text or implement work from a different phase.
 
 ## 19. Current task boundary
 

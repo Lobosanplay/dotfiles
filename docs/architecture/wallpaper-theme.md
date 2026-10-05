@@ -12,6 +12,21 @@
 | Hyprland | Uses Graphite Slate as fallback and the validated semantic projection for dynamic borders. |
 | DMS, DankBar, GTK, Kitty | Consume DMS's native outputs from that same Matugen generation. |
 
+## Wallpaper selection
+
+DMS owns wallpaper rendering and selection. In the current Hyprland setup,
+`SUPER+Y` runs `dms ipc call dash toggle wallpaper` and opens/toggles DMS's
+built-in wallpaper dashboard. Selecting a wallpaper there invokes DMS's
+wallpaper service and its Dynamic Matugen workflow. This is an entry-point
+shortcut; there is no dedicated Hyprland shortcut that directly applies the
+next wallpaper.
+
+The enabled `wallpaperCarousel` plugin is also available from DMS's Control
+Center shortcut grid. Its `shortcut.luau` defines that clickable tile, not a
+keyboard binding. The carousel's left/right/Enter/Escape keys operate only
+while the overlay is open. No keybinding for the plugin is present in the
+versioned Hyprland modules or the user's DMS bind override.
+
 ## Data flow
 
 ```text
