@@ -33,19 +33,23 @@ system-monitor widgets at the right. The profile now uses:
 
 | Group | Native DMS widgets |
 | --- | --- |
-| Left | Launcher, Hyprland workspace switcher |
+| Left | Launcher, system tray, battery |
 | Center | Clock |
-| Right | System tray, battery, notifications, control center |
+| Right | CPU usage, memory usage, CPU temperature, control center |
 
-This centers the clock through DMS's existing center section. It removes the
-music/weather and CPU/memory/temperature widgets from the bar to reduce visual
-noise. Audio, network, Bluetooth, and related controls remain available in
-DMS's existing control center. No unsupported status widget was added.
+This centers the clock through DMS's existing center section. The system tray
+and battery sit together after the launcher on the left. The workspace switcher
+and notification button are omitted; the overview remains available through
+its existing keybindings, and notifications remain part of DMS. CPU usage,
+memory usage, and CPU temperature use DMS's native `dgop` widgets; DMS hides
+them when its `dgop` service is unavailable. Audio, network, Bluetooth, and
+related controls remain available in DMS's existing control center.
 
 ## 43PR visual language adapted
 
 - Compact three-group composition with clock centered geometrically.
-- Restrained spacing, a softly rounded surface, and a 0.9 panel alpha.
+- Restrained spacing, a softly rounded surface, and a translucent panel
+  (updated to 0.74 alpha in Phase 21).
 - A quieter, single cohesive bar surface rather than individual widget cards.
 - Workspace indicators use DMS's native Hyprland data and show the active
   workspace index. Active and occupied colors use the theme's primary and
@@ -62,18 +66,18 @@ starting proportion, not a pixel-for-pixel reproduction of 43PR.
 ## Theme integration
 
 `scripts/build-theme.py` now also renders
-`dms/themes/graphite-blue/theme.json` from the shared preset through
+`dms/themes/graphite-slate/theme.json` from the shared preset through
 `themes/templates/dms-theme.json.tmpl`. The template maps DMS's primary,
 secondary, surface, text, outline, and semantic-state fields onto the existing
-Graphite Blue token roles. The generated file is a DMS custom theme, not a
+Graphite Slate token roles. The generated file is a DMS custom theme, not a
 second authored palette.
 
 The profile selects that theme using DMS's native `currentThemeName=custom`
-and `customThemeFile` settings. This selects static Graphite Blue for DMS as a
+and `customThemeFile` settings. This selects static Graphite Slate for DMS as a
 whole, because DMS applies its theme globally; DMS does not expose a separate
-DankBar-only palette. Phase 19's `dynamic-colors.json` is not connected to
-DMS in this phase. DMS's own wallpaper/Matugen system is not invoked or
-replaced by the profile.
+DankBar-only palette. Phase 21 selects Matugen's neutral wallpaper scheme for
+the application color outputs while retaining Graphite Slate as the custom
+DMS shell theme and fallback.
 
 ## Typography and iconography
 
@@ -105,13 +109,13 @@ python3 -B scripts/apply_dankbar_preset.py --apply
 
 The applier should run while DMS is stopped: a running shell can save its
 in-memory settings over an external edit. It copies the generated theme to
-`~/.config/DankMaterialShell/themes/dotfiles-graphite-blue/theme.json` and
+`~/.config/DankMaterialShell/themes/dotfiles-graphite-slate/theme.json` and
 changes only the selected theme, workspace-indicator preferences, and the
 `default` bar config in DMS settings. It preserves other keys and bar
 properties. Before its first change it creates
 `settings.json.before-phase20` (or a numbered variant without overwriting an
 existing backup). Revert the settings by restoring that backup and remove the
-`dotfiles-graphite-blue` custom-theme directory if no longer used. The
+`dotfiles-graphite-slate` custom-theme directory if no longer used. The
 repository theme and preset remain available for reapplication.
 
 ## Multi-monitor and performance
@@ -160,7 +164,7 @@ settings/theme interfaces; they do not depend on the overlay path.
   running desktop.
 - DMS applies its custom theme globally, not just to DankBar. This is the
   supported way to consume the shared palette without overriding DMS QML.
-- The generated DMS theme uses static Graphite Blue. Phase 19's dynamic color
+- The generated DMS theme uses static Graphite Slate. Phase 19's dynamic color
   overlay is not applied to DankBar and remains a future integration.
 - Native DankBar widget glyph aliases are not configurable through the DMS
   settings API; the widgets keep their bundled Material Symbols names.
@@ -170,7 +174,7 @@ settings/theme interfaces; they do not depend on the overlay path.
 
 - `themes/templates/dms-theme.json.tmpl` — shared-token to DMS-role mapping.
 - `scripts/build-theme.py` — generates/checks the DMS theme alongside Lua.
-- `dms/themes/graphite-blue/theme.json` — generated DMS custom theme.
+- `dms/themes/graphite-slate/theme.json` — generated DMS custom theme.
 - `dms/presets/dankbar-43pr.json` — native widget and visual profile.
 - `scripts/apply_dankbar_preset.py` — safe profile installer/checker.
 - `tests/theme/test_theme.py` and `tests/theme/test_dankbar_preset.py` —

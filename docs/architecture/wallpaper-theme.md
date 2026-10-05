@@ -8,8 +8,8 @@
 | Matugen | Produces one wallpaper-derived palette for DMS built-in and user templates. |
 | Semantic theme contract | Defines stable color role names and validates the dynamic color overlay against contract v2. |
 | Promotion hook | Validates the generated candidate and atomically updates the last-known-good runtime overlay. |
-| Graphite Blue | Static fallback used by current Hyprland configuration and by future consumers when no valid overlay is available. |
-| Hyprland | Currently consumes the committed Graphite Blue module; dynamic application is not enabled in this phase. |
+| Graphite Slate | Static fallback used by repository-managed theme consumers when no valid wallpaper palette is available. |
+| Hyprland | Uses the committed Graphite Slate module as fallback and loads DMS-generated border colors when present. |
 
 ## Data flow
 
@@ -43,7 +43,7 @@ treating it as a complete theme preset.
 - **Generated JSON or color roles are invalid:** validation fails before
   replacement; the existing overlay remains unchanged.
 - **No dynamic overlay exists:** current Hyprland continues using the
-  committed Graphite Blue token module. Future consumers must use that same
+  committed Graphite Slate token module. Future consumers must use that same
   static preset as their fallback.
 - **DMS user templates are disabled or the package is not linked:** no new
   overlay is generated. DMS's own wallpaper and built-in Matugen outputs are

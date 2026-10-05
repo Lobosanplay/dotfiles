@@ -79,9 +79,9 @@ class ThemeContractTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertNotIn("@@", first)
         self.assertIn('active_border = {', first)
-        self.assertIn('"rgba(8ab4f8ee)"', first)
-        self.assertIn('inactive_border = "rgba(343b46aa)"', first)
-        self.assertIn("shadow = 0xee0b0d11", first)
+        self.assertIn('"rgba(aab4c0ee)"', first)
+        self.assertIn('inactive_border = "rgba(3b4149aa)"', first)
+        self.assertIn("shadow = 0xee0d0f12", first)
         self.assertIn('primary = "Inter Variable"', first)
         self.assertIn('["AppIconRenderer.iconValue"] = "material:<ligature-name>"', first)
 
@@ -100,7 +100,7 @@ class ThemeContractTests(unittest.TestCase):
     def test_checked_in_dms_theme_matches_contract(self):
         template = (ROOT / "themes/templates/dms-theme.json.tmpl").read_text()
         expected = build_theme.render_dms_theme(self.preset, template)
-        self.assertEqual((ROOT / "dms/themes/graphite-blue/theme.json").read_text(), expected)
+        self.assertEqual((ROOT / "dms/themes/graphite-slate/theme.json").read_text(), expected)
 
     def test_checked_in_generated_module_matches_preset(self):
         self.assertEqual(

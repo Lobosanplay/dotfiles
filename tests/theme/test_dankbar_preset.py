@@ -48,6 +48,24 @@ class DankBarPresetTests(unittest.TestCase):
         self.assertEqual(result["barConfigs"][0]["shadowIntensity"], 3)
         self.assertTrue(result["barConfigs"][0]["island"])
         self.assertEqual(result["barConfigs"][0]["centerWidgets"], ["clock"])
+        self.assertEqual(result["matugenScheme"], "scheme-neutral")
+        self.assertEqual(result["barConfigs"][0]["transparency"], 0.74)
+        self.assertEqual(result["barConfigs"][0]["widgetTransparency"], 0.92)
+        self.assertEqual(
+            [widget["id"] for widget in result["barConfigs"][0]["leftWidgets"]],
+            ["launcherButton", "systemTray", "battery"],
+        )
+        self.assertEqual(
+            [widget["id"] for widget in result["barConfigs"][0]["rightWidgets"]],
+            ["cpuUsage", "memUsage", "cpuTemp", "controlCenterButton"],
+        )
+        widget_ids = {
+            widget["id"] if isinstance(widget, dict) else widget
+            for group in ("leftWidgets", "centerWidgets", "rightWidgets")
+            for widget in result["barConfigs"][0][group]
+        }
+        self.assertNotIn("workspaceSwitcher", widget_ids)
+        self.assertNotIn("notificationButton", widget_ids)
         self.assertFalse(result["barConfigs"][0]["scrollEnabled"])
         self.assertTrue(result["showWorkspaceIndex"])
         self.assertFalse(result["workspaceScrolling"])

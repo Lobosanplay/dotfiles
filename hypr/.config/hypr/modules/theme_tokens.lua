@@ -3,41 +3,41 @@
 return {
     semantic = {
         surfaces = {
-            background = "#0b0d11",
-            surface = "#12161c",
-            surface_variant = "#1b2028",
-            surface_elevated = "#232a34",
+            background = "#0d0f12",
+            surface = "#14171b",
+            surface_variant = "#1d2126",
+            surface_elevated = "#272c32",
         },
         text = {
-            primary = "#f2f4f8",
-            secondary = "#c2c8d2",
-            muted = "#929baa",
-            disabled = "#68717e",
+            primary = "#e6e8eb",
+            secondary = "#c0c4ca",
+            muted = "#9298a1",
+            disabled = "#6d737c",
         },
         accents = {
-            primary = "#8ab4f8",
-            secondary = "#9dd6c5",
-            selection = "#253b59",
-            focus = "#a8c7fa",
+            primary = "#aab4c0",
+            secondary = "#929ca8",
+            selection = "#303943",
+            focus = "#c2c8d0",
         },
         semantic = {
-            success = "#8bd5a8",
-            warning = "#f0c674",
-            error = "#f28b82",
-            info = "#8ab4f8",
+            success = "#a5bca9",
+            warning = "#c5b995",
+            error = "#c59d9d",
+            info = "#aab4c0",
         },
         borders = {
-            default = "#343b46",
-            subtle = "#242a33",
+            default = "#3b4149",
+            subtle = "#292e34",
         },
     },
     hyprland = {
         active_border = {
-            colors = { "rgba(8ab4f8ee)", "rgba(9dd6c5ee)" },
+            colors = { "rgba(aab4c0ee)", "rgba(929ca8ee)" },
             angle = 45,
         },
-        inactive_border = "rgba(343b46aa)",
-        shadow = 0xee0b0d11,
+        inactive_border = "rgba(3b4149aa)",
+        shadow = 0xee0d0f12,
     },
     typography = {
         families = {

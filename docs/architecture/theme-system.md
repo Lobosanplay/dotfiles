@@ -63,14 +63,13 @@ color-only semantic overlay at
 replace any DMS output. A post-hook validates the candidate and promotes it
 atomically; invalid candidates leave the last valid overlay untouched.
 
-The overlay is separate from the authored Graphite Blue preset and from the
+The overlay is separate from the authored Graphite Slate preset and from the
 generated `theme_tokens.lua`. The static preset remains the fallback and
-continues to feed the current Hyprland appearance. No automatic reload or
-runtime application of the overlay is wired into Hyprland yet: the active
-configuration differs from the repository version, and a reliable live
-application path needs its own validation. Future consumers should use the
+continues to feed the repository-managed Hyprland appearance. The active
+Hyprland setup also loads DMS's generated `dms.colors.lua` when present, which
+provides wallpaper-derived border colors. Future consumers should use the
 dynamic overlay only after validation and otherwise fall back to Graphite
-Blue. See [wallpaper-theme.md](wallpaper-theme.md) and
+Slate. See [wallpaper-theme.md](wallpaper-theme.md) and
 `docs/phases/19-wallpaper-dynamic-theme.md` for the full lifecycle.
 
 ## Current consumers and boundaries
@@ -83,5 +82,4 @@ and icon provider, but individual native widget glyphs are not remapped through
 the repository's alias table. GTK continues to use system font and icon-theme
 settings. Kitty continues to resolve its unspecified `monospace` family
 through Fontconfig. The dynamic Matugen overlay remains an export only; this
-consumer uses the static Graphite Blue preset until a later live-application
-phase.
+consumer uses the static Graphite Slate preset as its fallback.

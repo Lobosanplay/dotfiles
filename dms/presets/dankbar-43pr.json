@@ -1,8 +1,9 @@
 {
-  "description": "Compact three-group DankBar profile inspired by 43PR, using only native DMS widgets.",
+  "description": "Compact muted DankBar profile inspired by 43PR, using only native DMS widgets.",
   "settings": {
     "currentThemeName": "custom",
     "currentThemeCategory": "generic",
+    "matugenScheme": "scheme-neutral",
     "showWorkspaceIndex": true,
     "showWorkspaceName": false,
     "showWorkspacePadding": false,
@@ -18,20 +19,21 @@
       "id": "default",
       "leftWidgets": [
         { "id": "launcherButton", "enabled": true },
-        { "id": "workspaceSwitcher", "enabled": true }
+        { "id": "systemTray", "enabled": true },
+        { "id": "battery", "enabled": true }
       ],
       "centerWidgets": ["clock"],
       "rightWidgets": [
-        { "id": "systemTray", "enabled": true },
-        { "id": "battery", "enabled": true },
-        { "id": "notificationButton", "enabled": true },
+        { "id": "cpuUsage", "enabled": true },
+        { "id": "memUsage", "enabled": true },
+        { "id": "cpuTemp", "enabled": true },
         { "id": "controlCenterButton", "enabled": true }
       ],
       "spacing": 4,
       "innerPadding": 2,
       "widgetPadding": 5,
-      "transparency": 0.9,
-      "widgetTransparency": 1.0,
+      "transparency": 0.74,
+      "widgetTransparency": 0.92,
       "fontScale": 0.9,
       "iconScale": 0.9,
       "squareCorners": false,

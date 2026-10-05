@@ -14,8 +14,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 PRESET_PATH = ROOT / "dms/presets/dankbar-43pr.json"
-THEME_SOURCE = ROOT / "dms/themes/graphite-blue/theme.json"
-THEME_DIR_NAME = "dotfiles-graphite-blue"
+THEME_SOURCE = ROOT / "dms/themes/graphite-slate/theme.json"
+THEME_DIR_NAME = "dotfiles-graphite-slate"
 DMS_SETTING_DEFAULTS = {
     "currentThemeCategory": "generic",
     "showWorkspaceName": False,
@@ -150,9 +150,9 @@ def main() -> int:
     try:
         if args.check:
             if check(args.settings, args.theme_dir):
-                print("DankBar preset and Graphite Blue DMS theme are installed")
+                print("DankBar preset and Graphite Slate DMS theme are installed")
                 return 0
-            print("DankBar preset or Graphite Blue DMS theme is not installed")
+            print("DankBar preset or Graphite Slate DMS theme is not installed")
             return 1
         theme_path, changed, saved_copy = apply(args.settings, args.theme_dir)
         if changed:
