@@ -8,7 +8,7 @@ cursor has one theme and one size in every application.
 
 ## Status
 
-Implemented and applied on this machine. Automated checks pass. The visual
+Implemented and applied on this machine (commit `4ba964f`). Automated checks pass. The visual
 result in a restarted Lunar Client and after a new login was not observed by
 the agent and remains for the user to confirm.
 
