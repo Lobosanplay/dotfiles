@@ -15,6 +15,12 @@ binds {
     Mod+Ctrl+5 { move-column-to-workspace "media"; }
     Mod+Ctrl+6 { move-column-to-workspace "gaming"; }
 
+    // Personal application controls.
+    Mod+Space { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
+    Mod+T { spawn "kitty"; }
+    Mod+D { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+    Mod+Q repeat=false { close-window; }
+
     // Toggle between the current and previous workspace.
     Mod+Tab repeat=false { focus-workspace-previous; }
 }
