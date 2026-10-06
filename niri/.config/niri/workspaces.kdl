@@ -1,0 +1,6 @@
+workspace "main"
+workspace "code"
+workspace "browser"
+workspace "communication"
+workspace "media"
+workspace "gaming"

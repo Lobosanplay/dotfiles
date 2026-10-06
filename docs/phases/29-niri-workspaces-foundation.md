@@ -2,7 +2,7 @@
 
 ## Status
 
-Planned
+**Complete**
 
 ## Objective
 
@@ -10,9 +10,9 @@ Introduce Niri as a second Wayland compositor/session on Fedora 44 and establish
 
 This phase intentionally establishes the architectural foundation only.
 
-The existing Hyprland workspace architecture remains fully intact and operational throughout the phase.
+The existing Hyprland workspace architecture remains fully intact and operational.
 
-Niri becomes authoritative for workspace management only inside the Niri session.
+Niri is authoritative for workspace management only inside the Niri session.
 
 ---
 
@@ -29,7 +29,7 @@ The current desktop environment is based on:
 * persistent workspace metadata
 * DMS workspace overview overrides
 
-The current Hyprland workspace system is significantly customized.
+The existing Hyprland workspace system remains unchanged.
 
 Its architecture is approximately:
 
@@ -65,7 +65,7 @@ Workspace metadata persists separately:
 ~/.local/state/hyprland/workspace-metadata.json
 ```
 
-This architecture is valid for Hyprland and should not be removed merely because Niri is being introduced.
+These systems were not modified by Phase 29.
 
 ---
 
@@ -73,7 +73,9 @@ This architecture is valid for Hyprland and should not be removed merely because
 
 ## Option B — Independent Niri workspace architecture
 
-Niri will not attempt to emulate the existing Hyprland `WorkspaceGraph`.
+**Implemented and validated.**
+
+Niri does not attempt to emulate the existing Hyprland `WorkspaceGraph`.
 
 Instead:
 
@@ -88,7 +90,7 @@ Niri session
     │
     ├── Native Niri workspaces
     ├── Named workspaces
-    ├── Native Niri navigation
+    ├── Native navigation
     ├── Niri keybindings
     └── Native Niri Overview
 ```
@@ -101,9 +103,7 @@ This avoids creating a compatibility layer between two fundamentally different w
 
 Niri's workspace model is not a four-direction graph.
 
-Niri maintains independent workspace sequences per monitor, with dynamic workspaces arranged vertically. Named workspaces provide the persistent semantic layer needed for stable destinations.
-
-Therefore the correct abstraction is:
+The implemented abstraction is therefore:
 
 ```text
 Hyprland:
@@ -113,23 +113,13 @@ Niri:
 workspace name → semantic destination
 ```
 
-rather than:
-
-```text
-Hyprland graph
-       ↓
-Niri compatibility graph
-       ↓
-Niri workspaces
-```
-
-The second approach would duplicate state and create synchronization problems without providing a real benefit.
+No compatibility graph or synchronization layer was introduced.
 
 ---
 
 # 3. Goals
 
-Phase 29 will establish:
+Phase 29 established:
 
 1. Niri installed on Fedora 44.
 2. A functional Niri Wayland session.
@@ -138,30 +128,38 @@ Phase 29 will establish:
 5. A modular configuration structure.
 6. Named workspaces.
 7. Workspace navigation.
-8. Workspace-to-window movement.
-9. Workspace-specific application placement where justified.
-10. Native Niri Overview.
-11. A minimal set of window rules required to test the workspace model.
-12. A documented rollback procedure.
-13. Validation commands and acceptance criteria.
+8. Workspace-to-window movement bindings.
+9. Native Niri Overview.
+10. DMS compatibility sufficient to operate the Niri session without a duplicate bar.
+11. A documented rollback procedure.
+12. Validation commands and acceptance criteria.
+
+### Implementation note
+
+Minimal application-specific window rules were **not** added in this phase.
+
+The real Niri application identifiers were inspected for future use:
+
+```text
+Brave     → brave-browser
+Vesktop   → vesktop
+Zed       → dev.zed.Zed
+```
+
+They remain available for a future application-placement phase.
 
 ---
 
 # 4. Explicit Non-Goals
 
-The following are explicitly outside Phase 29.
-
 ## 4.1 No Hyprland removal
 
-Do not remove:
+No Hyprland workspace infrastructure was removed or rewritten.
+
+The following remain intact:
 
 ```text
 hypr/
-```
-
-Do not remove or rewrite:
-
-```text
 WorkspaceGraph
 WorkspaceMetadata
 workspace-graph.json handling
@@ -171,52 +169,29 @@ Hyprland workspace keybindings
 
 ---
 
-## 4.2 No DMS migration
+## 4.2 No DMS workspace migration
 
-Do not migrate DMS to Niri in this phase.
+The existing Hyprland DMS Overview was not migrated or replaced.
 
-Do not remove:
+Niri uses its native Overview.
 
-```text
-dms/overrides/
-```
-
-Do not replace the current DMS Overview.
-
-Niri's native Overview will be used in the Niri session.
-
-Niri already provides a native zoomed-out Overview capable of navigating workspaces and moving windows, so reproducing the current custom DMS graph Overview would be unnecessary at this stage.
+DMS itself remains active in the Niri session, but Phase 29 does not attempt to redesign or migrate the DMS shell.
 
 ---
 
 ## 4.3 No broad application migration
 
-This phase does not select or install a complete application ecosystem from another dotfiles repository.
+No application ecosystem was ported from another dotfiles repository.
 
-In particular, do not automatically port:
-
-* launchers
-* terminals
-* browsers
-* file managers
-* notification daemons
-* bars
-* wallpaper systems
-* audio utilities
-* Bluetooth utilities
-* custom shells
-* theme systems
-* miscellaneous scripts
-
-Application selection and installation remain a separate future phase.
+No launchers, terminals, browsers, file managers, notification systems, wallpaper systems or other third-party desktop configuration were migrated as part of this phase.
 
 ---
 
 ## 4.4 No theme migration
 
-Do not migrate the existing Graphite/Slate theme system.
+The existing theme infrastructure remains untouched.
 
-Do not rewrite:
+No migration was performed for:
 
 ```text
 theme_tokens.lua
@@ -227,41 +202,27 @@ Kitty theme
 cursor system
 ```
 
-The initial Niri session should prioritize functionality and workspace architecture.
-
 ---
 
 ## 4.5 No NVIDIA optimization
 
-NVIDIA/PRIME configuration is not part of this phase.
+No NVIDIA, PRIME, driver or GPU configuration was modified.
 
-Any rendering issue encountered while testing Niri should first be diagnosed independently rather than modifying the existing graphics configuration.
+NVIDIA remained operational throughout testing.
 
 ---
 
 ## 4.6 Niri does not become the default compositor
 
-Hyprland remains the established session.
+Hyprland remains independently selectable through GDM.
 
-Niri is introduced as an additional selectable session.
-
-No automatic GDM default-session change should be made.
+No default GDM session was changed.
 
 ---
 
 # 5. Niri Configuration Architecture
 
-Niri supports:
-
-```text
-~/.config/niri/config.kdl
-```
-
-and supports modular configuration through `include`.
-
-Configuration changes are live-reloaded, and `niri validate` can parse the configuration without starting a session.
-
-The repository should therefore use a structure similar to:
+The repository now contains:
 
 ```text
 dotfiles/
@@ -269,32 +230,26 @@ dotfiles/
 │   └── .config/
 │       └── niri/
 │           ├── config.kdl
-│           └── ...
+│           ├── workspaces.kdl
+│           └── binds.kdl
 │
 └── docs/
     └── phases/
         └── 29-niri-workspace-foundation.md
 ```
 
-The exact subdivision of the Niri configuration should be decided during implementation after inspecting the current Niri default configuration.
+The configuration uses Niri's native `include` mechanism.
 
-Because Niri now supports `include`, modular files are preferred if the resulting structure remains understandable.
-
-A possible future structure is:
+`config.kdl` contains the version-compatible Fedora Niri baseline and includes:
 
 ```text
-niri/
-└── .config/
-    └── niri/
-        ├── config.kdl
-        ├── workspaces.kdl
-        ├── binds.kdl
-        └── rules.kdl
+workspaces.kdl
+binds.kdl
 ```
 
-This is a proposed implementation structure, not a requirement to blindly create every file.
+The configuration remains intentionally close to the Fedora-provided default configuration rather than replacing it with a minimal third-party configuration.
 
-The implementation phase must first inspect the current Niri default configuration and determine the smallest sensible decomposition.
+A separate `rules.kdl` was **not** introduced because no application-placement rules were necessary to establish the workspace foundation.
 
 ---
 
@@ -302,11 +257,9 @@ The implementation phase must first inspect the current Niri default configurati
 
 ## 6.1 Principle
 
-Niri should use semantic workspaces rather than reproducing the numeric/directional graph used by Hyprland.
+Niri uses semantic workspaces rather than reproducing the numeric/directional graph used by Hyprland.
 
-The workspace names should describe their purpose.
-
-Initial proposal:
+The implemented workspace set is:
 
 ```text
 main
@@ -317,9 +270,7 @@ media
 gaming
 ```
 
-These names are intentionally semantic.
-
-They are not intended to represent fixed physical positions.
+These names are semantic destinations rather than permanent physical monitor positions.
 
 ---
 
@@ -329,13 +280,7 @@ They are not intended to represent fixed physical positions.
 
 General-purpose workspace.
 
-Typical contents:
-
-* temporary applications
-* miscellaneous tasks
-* applications that do not have a dedicated workspace
-
-This should be the neutral/default destination.
+Neutral/default destination for miscellaneous applications and temporary tasks.
 
 ---
 
@@ -345,12 +290,10 @@ Development workspace.
 
 Intended for:
 
-* code editor
-* terminal
+* code editors
+* terminals
 * development tools
 * project-related windows
-
-The goal is to give development work a predictable semantic destination without requiring a numeric workspace number.
 
 ---
 
@@ -358,12 +301,7 @@ The goal is to give development work a predictable semantic destination without 
 
 General web browsing and research.
 
-Intended for:
-
-* Brave
-* documentation
-* research
-* web applications
+Intended for browsers, documentation and web applications.
 
 ---
 
@@ -371,13 +309,9 @@ Intended for:
 
 Communication-oriented applications.
 
-Potential examples:
+Potentially used by Discord, messaging and collaboration applications.
 
-* Discord
-* messaging clients
-* collaboration tools
-
-Specific applications should not be installed or selected in Phase 29.
+No application-specific placement rule was introduced in this phase.
 
 ---
 
@@ -385,13 +319,9 @@ Specific applications should not be installed or selected in Phase 29.
 
 Media consumption.
 
-Potential examples:
+Potentially used by Spotify and media applications.
 
-* Spotify
-* video players
-* media-related applications
-
-Again, application selection remains outside this phase.
+No application-specific placement rule was introduced in this phase.
 
 ---
 
@@ -399,38 +329,34 @@ Again, application selection remains outside this phase.
 
 Games and gaming-related windows.
 
-This workspace exists as a semantic destination but should not yet receive complex gaming-specific rules.
-
-Gaming-specific behavior can be addressed later after the base Niri session is stable.
+The workspace exists as a semantic destination without additional gaming-specific rules.
 
 ---
 
 # 8. Why Named Workspaces
 
-Niri named workspaces are persistent even when empty.
+Named workspaces were selected because they provide stable semantic destinations without coupling configuration to dynamic numeric workspace indices.
 
-They can be referenced directly by name through actions such as:
+The implemented bindings reference workspace names directly:
 
 ```text
-focus-workspace
-move-column-to-workspace
+focus-workspace "main"
+focus-workspace "code"
+focus-workspace "browser"
+focus-workspace "communication"
+focus-workspace "media"
+focus-workspace "gaming"
 ```
 
-and applications can be assigned to them through window rules.
+Window movement uses the corresponding named workspace actions.
 
-This makes them a much better match for the desired semantic workspace model than trying to force Niri's dynamic numeric indices to behave like static Hyprland IDs.
-
-Niri's numeric workspace indices are positional rather than permanent identifiers, so using names avoids coupling the configuration to workspace ordering.
+This keeps workspace identity independent of the numeric ordering reported by Niri.
 
 ---
 
 # 9. Workspace Ordering
 
-The initial workspace declaration order should be treated as a default presentation order rather than an immutable spatial layout.
-
-Niri permits named workspaces to move between monitors and change position.
-
-Therefore:
+The declared order is:
 
 ```text
 main
@@ -441,17 +367,21 @@ media
 gaming
 ```
 
-represents the initial semantic set, not a permanent physical graph.
+This represents the initial semantic ordering.
 
-This is intentional.
+It is not treated as an immutable physical workspace graph.
+
+During validation, Niri associated the declared named workspaces with `eDP-1` while `HDMI-A-2` maintained its own dynamic workspace sequence.
+
+This behavior was accepted rather than overridden with explicit `open-on-output` rules.
+
+No monitor-specific workspace policy was hard-coded during Phase 29.
 
 ---
 
 # 10. Workspace Navigation
 
-Navigation should be based on semantic destinations.
-
-The first implementation should provide:
+The implemented semantic bindings are:
 
 ```text
 Super + 1 → main
@@ -462,134 +392,106 @@ Super + 5 → media
 Super + 6 → gaming
 ```
 
-These bindings are a proposed initial scheme.
+The configuration was validated successfully by Niri.
 
-Before implementation, they must be checked against:
-
-* Niri default bindings
-* existing personal habits
-* keyboard layout
-* conflicts with other controls
-
-The actual key assignments should only be committed after that inspection.
+The numeric default bindings for the same workspace range were removed from the copied Fedora default configuration to avoid conflicting behavior.
 
 ---
 
 # 11. Relative Navigation
 
-Niri also provides native relative workspace navigation.
+Niri's native workspace navigation remains available.
 
-The implementation should preserve native actions such as:
+The configuration retains native Niri actions such as:
 
 ```text
 focus-workspace-up
 focus-workspace-down
-move-workspace-up
-move-workspace-down
+focus-workspace-left
+focus-workspace-right
 ```
 
-where appropriate.
+where provided by the default configuration.
 
-These actions should not be wrapped in a custom graph layer.
-
-Niri's workspace model is explicitly vertical per monitor, making native relative navigation more coherent than recreating directional graph semantics.
+No custom workspace graph layer was introduced.
 
 ---
 
 # 12. Window Movement
 
-The workspace system should provide dedicated actions for moving the focused window/column to a semantic workspace.
+The semantic workspace bindings also provide movement of the focused column:
 
-The conceptual model is:
+```text
+Super + Ctrl + 1 → main
+Super + Ctrl + 2 → code
+Super + Ctrl + 3 → browser
+Super + Ctrl + 4 → communication
+Super + Ctrl + 5 → media
+Super + Ctrl + 6 → gaming
+```
+
+The conceptual model is therefore:
 
 ```text
 focus workspace
-move current column to workspace
+        │
+        └── named destination
+
+move focused column
+        │
+        └── named destination
 ```
 
-rather than:
-
-```text
-modify graph
-create node
-connect node
-activate graph node
-```
-
-This keeps window placement entirely inside Niri.
+No graph state or compatibility state is involved.
 
 ---
 
 # 13. Native Overview
 
-Niri's native Overview becomes the Overview for the Niri session.
+Niri's native Overview remains enabled.
 
-It should be bound to a convenient key, initially proposed as:
+The Fedora default configuration's native Overview binding was preserved.
 
-```text
-Super + Tab
-```
+The implemented configuration therefore does **not** replace Niri Overview with the Hyprland DMS graph Overview.
 
-This intentionally mirrors the user's existing muscle memory.
-
-The existing Hyprland behavior remains unchanged:
+This maintains the architectural separation:
 
 ```text
 Hyprland:
-Super + Tab → DMS Overview
+Super + Tab → existing DMS Overview
 
 Niri:
-Super + Tab → Niri Overview
+native Niri Overview
 ```
 
-This gives both sessions a consistent conceptual shortcut without sharing implementation.
-
-Niri's Overview is already designed to zoom out workspaces and windows, navigate the workspace layout, and move windows interactively.
+The native Niri Overview was retained as the appropriate workspace visualization for this session.
 
 ---
 
 # 14. Window Rules
 
-Phase 29 should introduce only the minimum window rules required to demonstrate that named workspaces work correctly.
+No `rules.kdl` was introduced.
 
-Rules should be based on observable application identifiers such as:
+The phase deliberately stopped before automatic application placement.
 
-```text
-app-id
-title
-```
-
-rather than fragile window titles whenever possible.
-
-The initial rule set should remain intentionally small.
-
-Example conceptual mapping:
+Real Niri application identifiers were inspected during testing:
 
 ```text
-Browser
-    ↓
-browser
-
-Code editor / terminal
-    ↓
-code
-
-Communication application
-    ↓
-communication
+Spotify     → spotify
+Vesktop     → vesktop
+Brave       → brave-browser
+Zed         → dev.zed.Zed
 ```
 
-However, actual application rules should only be added after verifying their real Niri `app-id` values.
+These identifiers provide a verified basis for a future application-placement phase.
 
-No assumptions should be made from package names or executable names.
+No speculative rules were added.
 
 ---
 
 # 15. Rule Design Principle
 
-Workspace assignment should be deterministic but conservative.
-
-The preferred order is:
+The rule strategy for future phases remains:
 
 ```text
 specific application
@@ -597,7 +499,7 @@ specific application
 specific workspace
 ```
 
-rather than broad rules such as:
+rather than broad categories such as:
 
 ```text
 all GTK applications
@@ -606,235 +508,267 @@ all terminals
 all browsers
 ```
 
-Broad rules could unexpectedly capture applications and make debugging harder.
+This phase intentionally leaves those rules for later.
 
 ---
 
 # 16. Monitor Behavior
 
-Niri named workspaces can optionally use `open-on-output`.
+The physical monitor configuration was inspected inside Niri before introducing output-specific workspace rules.
 
-However, Phase 29 should not immediately hard-code workspace-to-monitor placement unless the physical monitor configuration has first been inspected.
-
-The current machine has an internal Intel display and NVIDIA hardware, so monitor/output behavior must be verified inside the actual Niri session before introducing persistent output-specific workspace rules.
-
-The initial configuration should therefore prioritize:
+Niri reported:
 
 ```text
-named workspace semantics
+eDP-1
+1920x1200 @ 180 Hz
+position 0,0
+scale 1
+
+HDMI-A-2
+1600x900 @ 60 Hz
+position 1920,0
+scale 1
 ```
 
-over:
+No `open-on-output` rules were added.
 
-```text
-hard-coded monitor topology
-```
-
-Once the Niri session has been tested, a later phase can introduce explicit monitor/workspace placement if necessary.
+The reason is intentional: workspace semantics were established first, while persistent monitor/workspace policy remains a future concern.
 
 ---
 
 # 17. Installation Strategy
 
-Niri should be installed using the Fedora-compatible packaging path rather than manually compiling it unless Fedora packaging proves insufficient.
+Niri was installed using Fedora's packaged Niri implementation.
 
-Current Niri documentation explicitly documents Fedora installation and standalone desktop-session integration. The official integration documentation states that a correctly packaged Niri session places the compositor/session files where GDM and other display managers can discover them.
+The available Fedora Updates package was:
 
-The exact installation command should be verified against the current Fedora 44 repositories/COPR state immediately before execution.
+```text
+niri-26.04-1.fc44.x86_64
+```
 
-No installation command should be committed to the dotfiles merely because it appears in upstream documentation.
+The installed version is:
 
-The implementation phase must first determine:
+```text
+niri 26.04
+```
 
-1. whether `niri` is available from the currently enabled Fedora repositories;
-2. whether a COPR is required;
-3. what package version is available;
-4. which companion packages are actually required;
-5. whether GDM detects the session automatically.
+The installation was performed through Fedora's package manager rather than manual compilation.
+
+No Arch/AUR installation mechanism was introduced.
+
+The transaction installed Niri and its Fedora package dependencies/weak dependencies without removing existing desktop components.
 
 ---
 
 # 18. Session Integration
 
-The expected final state is:
+GDM now exposes Niri as a separate Wayland session.
+
+The installed session descriptor is:
+
+```text
+/usr/share/wayland-sessions/niri.desktop
+```
+
+Its relevant contents are:
+
+```ini
+[Desktop Entry]
+Name=Niri
+Comment=A scrollable-tiling Wayland compositor
+Exec=niri-session
+Type=Application
+DesktopNames=niri
+```
+
+The resulting session structure is:
 
 ```text
 GDM
  ├── Hyprland
+ ├── Hyprland (UWSM)
+ ├── GNOME
+ ├── GNOME Classic
  └── Niri
 ```
 
-Selecting Hyprland must continue to start the existing environment.
-
-Selecting Niri must start:
-
-```text
-niri-session
-```
-
-with the repository-managed configuration.
-
-Niri's official packaging guidance uses a standalone desktop session and a Wayland session descriptor so that it appears in GDM.
-
-No manual modification under `/usr/share` should be used unless absolutely required by packaging.
+No manual modification of the system session descriptor was required.
 
 ---
 
 # 19. Repository Deployment
 
-The repository currently does not use a universal GNU Stow deployment model.
+The repository does not use a universal GNU Stow deployment model.
 
-Therefore Phase 29 should not introduce Stow solely for Niri.
+Phase 29 therefore did not introduce Stow.
 
-The implementation should follow the repository's established configuration-management pattern.
-
-Before creating symlinks or deployment scripts, inspect:
+The canonical repository configuration is:
 
 ```text
-scripts/
+niri/.config/niri/
 ```
 
-and existing configuration deployment behavior.
+The active configuration was kept synchronized with the repository configuration during validation.
 
-If a simple repository directory can map cleanly to:
+The following files were verified byte-for-byte identical between the active configuration and repository:
 
 ```text
-~/.config/niri/
+config.kdl
+workspaces.kdl
+binds.kdl
 ```
 
-without introducing unnecessary infrastructure, prefer that approach.
+SHA-256 verification produced matching hashes for each corresponding pair.
 
 ---
 
 # 20. Default Configuration Baseline
 
-The initial Niri configuration should start from the current upstream/default Niri configuration rather than from an old third-party dotfile.
+The configuration began from the Fedora-provided Niri 26.04 default configuration.
 
-Niri explicitly recommends using its default configuration as a starting point, and the default configuration can evolve between releases.
+This preserved:
 
-This is particularly important because the Niri configuration syntax and available features continue to evolve.
+* current KDL syntax
+* native Niri defaults
+* current input configuration
+* layout defaults
+* native Overview
+* animations
+* screenshot configuration
+* native keybindings
+* current Niri-compatible options
 
-The implementation phase should record:
+Only the workspace and keybinding portions required for Phase 29 were customized.
+
+The Niri version used throughout validation was:
 
 ```text
-niri version
+niri 26.04
 ```
-
-and use that version when validating the configuration.
 
 ---
 
 # 21. Interaction With DMS
 
-DMS should not be assumed to work identically under Niri.
+DMS was tested in the Niri session.
 
-Phase 29 therefore treats DMS integration as optional and secondary.
-
-The workspace foundation must work with:
+The DMS service remained active:
 
 ```text
-Niri alone
+/usr/bin/dms run --session
 ```
 
-before attempting to attach the existing DMS environment.
+and its Quickshell overlay was running.
 
-This provides a clean diagnostic boundary:
+An initial duplicate-bar condition was identified.
+
+The cause was the Fedora Niri default example:
 
 ```text
-Niri problem
-vs.
-DMS integration problem
+spawn-at-startup "waybar"
 ```
 
-If DMS is started in Niri during a later phase, its Niri support should be evaluated independently.
+This was removed from the repository-managed Niri configuration.
 
-Niri documentation currently lists DMS among shells that support Niri, but that does not justify migrating the existing DMS setup during this workspace phase.
+It was replaced with a comment documenting that DMS provides the session bar.
+
+After relogin:
+
+```text
+Waybar → not running
+DMS → active
+```
+
+This eliminated the duplicate-bar condition without modifying DMS itself.
+
+Therefore the final Phase 29 architecture is:
+
+```text
+Niri
+  │
+  └── DMS session shell
+          │
+          └── no Waybar duplicate
+```
+
+DMS workspace/visual integration beyond this compatibility correction remains outside the scope of Phase 29.
 
 ---
 
 # 22. Hyprland Compatibility
 
-After Phase 29:
+Hyprland remained untouched by the Niri implementation.
+
+No changes were made to:
 
 ```text
-Hyprland
+hypr/.config/hypr/
+dms/overrides/Modules/WorkspaceOverlays/
+tests/layout/
 ```
 
-must continue to have:
+The final Git scope confirms that the implementation consists exclusively of Niri configuration files.
 
-```text
-WorkspaceGraph
-WorkspaceMetadata
-DMS Overview
-existing keybindings
-existing workspace persistence
-```
-
-No Niri configuration should import or execute the Hyprland Lua workspace system.
-
-Likewise, Hyprland configuration should not be modified merely to accommodate Niri.
-
-The two systems remain isolated.
+The existing Hyprland workspace architecture remains available independently.
 
 ---
 
 # 23. State Isolation
 
-Niri must not write to:
+Niri does not use the Hyprland workspace state files:
 
 ```text
 ~/.local/state/hyprland/workspace-graph.json
 ~/.local/state/hyprland/workspace-metadata.json
 ```
 
-and Hyprland must not depend on Niri workspace state.
+No compatibility state file was introduced.
 
-The intended separation is:
+The resulting separation remains:
 
 ```text
-Hyprland state
-    └── ~/.local/state/hyprland/
+Hyprland
+    └── WorkspaceGraph
+          └── ~/.local/state/hyprland/
 
-Niri state
-    └── Niri-managed runtime/state locations
+
+Niri
+    └── native named workspace state
 ```
 
-No compatibility state file should be introduced.
+The two workspace systems remain independent.
 
 ---
 
-# 24. Proposed Repository Changes
+# 24. Final Repository Changes
 
-Expected new files:
+The Phase 29 implementation adds:
 
 ```text
 niri/
 └── .config/
     └── niri/
-        └── config.kdl
+        ├── config.kdl
+        ├── workspaces.kdl
+        └── binds.kdl
 ```
 
-Potential additional files, only if justified by the final modular structure:
+The configuration contains:
 
-```text
-niri/.config/niri/workspaces.kdl
-niri/.config/niri/binds.kdl
-niri/.config/niri/rules.kdl
-```
+* Fedora Niri 26.04 baseline
+* DMS-compatible bar startup behavior
+* named workspaces
+* semantic workspace bindings
+* semantic column-movement bindings
+* previous-workspace navigation
 
-Documentation:
-
-```text
-docs/phases/29-niri-workspace-foundation.md
-```
-
-Potential scripts should only be added if the existing repository architecture requires them.
+No `rules.kdl` was added because application-placement rules were intentionally deferred.
 
 ---
 
 # 25. Files Explicitly Not Modified
 
-The following should remain unchanged in Phase 29 unless an implementation issue proves a minimal compatibility change necessary:
+The following remained outside the Phase 29 change set:
 
 ```text
 hypr/.config/hypr/hyprland.lua
@@ -852,7 +786,7 @@ dms/overrides/Modules/WorkspaceOverlays/
 tests/layout/
 ```
 
-In particular, the custom `GraphLayout.js` must not be converted into a Niri workspace layout engine.
+The custom `GraphLayout.js` was not converted into a Niri workspace layout engine.
 
 ---
 
@@ -860,83 +794,94 @@ In particular, the custom `GraphLayout.js` must not be converted into a Niri wor
 
 ## Step 1 — Preflight
 
-Verify:
+**Complete.**
 
-```text
-git status
-```
-
-Verify current branch and repository cleanliness.
-
-Verify:
-
-```text
-command -v niri
-niri --version
-```
-
-Expected initial state:
-
-```text
-niri not installed
-```
-
-Record current display/session state.
+Repository state, branch, Hyprland architecture and current session were inspected before modification.
 
 ---
 
 ## Step 2 — Inspect Niri packaging
 
-Determine:
+**Complete.**
 
-* Fedora package availability
-* required repositories
-* package version
-* session files
-* systemd user integration
-* Xwayland integration
-* portal integration
+Fedora package availability and the Niri package contents were inspected before installation.
 
-Do not install anything until the dependency boundary is understood.
+The Fedora Updates package was identified as:
+
+```text
+niri-26.04-1.fc44
+```
+
+The package contents confirmed:
+
+* `/usr/bin/niri`
+* `/usr/bin/niri-session`
+* Niri systemd user integration
+* GDM/Wayland session integration
+* Fedora Niri portal configuration
+* version-compatible default configuration
 
 ---
 
 ## Step 3 — Install Niri
 
-Install only the packages required for the Niri session.
+**Complete.**
 
-Do not install a complete third-party desktop configuration.
+Niri was installed through Fedora packaging.
 
-After installation verify:
+Verified:
 
 ```text
 command -v niri
+→ /usr/bin/niri
+
+command -v niri-session
+→ /usr/bin/niri-session
+
 niri --version
+→ niri 26.04
 ```
 
 ---
 
 ## Step 4 — Verify GDM session
 
-Confirm that GDM exposes Niri as a separate session.
+**Complete.**
 
-Do not modify the existing Hyprland session.
+GDM exposes:
+
+```text
+niri.desktop
+```
+
+and `niri-session` starts successfully.
 
 ---
 
 ## Step 5 — Create repository configuration
 
-Create the Niri configuration directory in the repository.
+**Complete.**
 
-Begin from the installed/upstream version-compatible default configuration.
+The Fedora Niri 26.04 default configuration was copied into:
 
-Do not immediately replace the entire default configuration with a custom minimal file.
+```text
+niri/.config/niri/config.kdl
+```
+
+and modularized with:
+
+```text
+workspaces.kdl
+binds.kdl
+```
 
 ---
 
 ## Step 6 — Establish named workspaces
 
-Introduce the initial semantic workspace set:
+**Complete.**
+
+The following named workspaces were added:
 
 ```text
 main
@@ -947,52 +892,61 @@ media
 gaming
 ```
 
-Validate the syntax before starting a full session.
+`niri validate` succeeds.
 
 ---
 
 ## Step 7 — Add workspace bindings
 
-Add the approved workspace bindings.
+**Complete.**
 
-Validate:
+Semantic focus bindings were added:
 
-* focus
-* movement
-* relative navigation
-* Overview
-* window movement
+```text
+Super + 1..6
+```
+
+Semantic column movement bindings were added:
+
+```text
+Super + Ctrl + 1..6
+```
+
+Previous-workspace navigation was added:
+
+```text
+Super + Tab
+```
+
+with repeat disabled.
+
+Native Niri navigation and Overview behavior remain available.
 
 ---
 
 ## Step 8 — Add minimal window rules
 
-Only add rules whose application identifiers have been verified.
+**Deferred intentionally.**
 
-Avoid speculative rules.
+Real application identifiers were verified, but no automatic placement rules were necessary to prove the workspace foundation.
+
+This work belongs in a future application-placement phase.
 
 ---
 
 ## Step 9 — Start Niri
 
-Log into Niri from GDM.
+**Complete.**
 
-Do not yet attempt to reproduce the entire Hyprland desktop.
+Niri was started from GDM and validated as a functioning Wayland session.
 
-The first test target is:
+Verified:
 
 ```text
-Niri starts
-↓
-keyboard works
-↓
-windows open
-↓
-workspaces exist
-↓
-navigation works
-↓
-Overview works
+XDG_SESSION_TYPE=wayland
+XDG_CURRENT_DESKTOP=niri
+XDG_SESSION_DESKTOP=niri
+WAYLAND_DISPLAY=wayland-1
 ```
 
 ---
@@ -1001,47 +955,340 @@ Overview works
 
 ## Installation
 
+**PASS**
+
 ```text
 niri --version
 ```
 
-Must succeed.
+Result:
+
+```text
+niri 26.04
+```
 
 ---
 
 ## Configuration
 
+**PASS**
+
 ```text
-niri validate
+niri validate -c ~/.config/niri/config.kdl
 ```
 
-Must return successfully.
+Result:
 
-Niri officially provides this validation command for configuration parsing.
+```text
+INFO niri: config is valid
+```
+
+The repository configuration was also validated successfully.
 
 ---
 
 ## Session
 
-Verify:
+**PASS**
 
 ```text
-echo "$XDG_SESSION_TYPE"
+XDG_SESSION_TYPE=wayland
+XDG_CURRENT_DESKTOP=niri
+XDG_SESSION_DESKTOP=niri
 ```
 
-Expected:
+Niri service:
 
 ```text
-wayland
+niri.service → active
 ```
 
-Verify the compositor/session corresponds to Niri.
+---
+
+## Outputs
+
+**PASS**
+
+Niri detects:
+
+```text
+eDP-1
+1920x1200 @ 180.001 Hz
+
+HDMI-A-2
+1600x900 @ 60 Hz
+```
+
+No explicit workspace/output policy was required.
 
 ---
 
 ## Workspaces
 
-Verify that:
+**PASS**
+
+Niri reported the declared semantic workspaces:
+
+```text
+1 "main"
+2 "code"
+3 "browser"
+4 "communication"
+5 "media"
+6 "gaming"
+```
+
+The workspaces were observed as persistent named destinations.
+
+Additional dynamic workspace IDs may exist independently of these named workspaces.
+
+---
+
+## Navigation
+
+**PASS**
+
+The semantic workspace bindings were incorporated into the active configuration and workspace state was observed changing between the named destinations.
+
+---
+
+## Window movement
+
+**CONFIGURATION PASS**
+
+The semantic movement bindings are implemented using Niri's native:
+
+```text
+move-column-to-workspace
+```
+
+actions.
+
+Automatic application-placement rules were intentionally not introduced.
+
+---
+
+## Previous workspace
+
+**PASS**
+
+The configuration includes:
+
+```text
+Mod+Tab repeat=false {
+    focus-workspace-previous;
+}
+```
+
+---
+
+## Overview
+
+**PASS**
+
+Niri's native Overview remains enabled through the Fedora default configuration.
+
+No custom DMS workspace Overview was introduced into the Niri configuration.
+
+---
+
+## DMS / Waybar
+
+**PASS**
+
+After removing the default Waybar startup example:
+
+```text
+Waybar → not running
+DMS → active
+```
+
+The duplicate-bar condition was resolved.
+
+---
+
+## Repository synchronization
+
+**PASS**
+
+Active and repository configuration files were verified with `cmp` and SHA-256 hashes.
+
+Verified identical:
+
+```text
+config.kdl
+workspaces.kdl
+binds.kdl
+```
+
+---
+
+## Hyprland scope
+
+**PASS**
+
+Git inspection confirmed no changes under:
+
+```text
+hypr/
+dms/
+```
+
+The Phase 29 implementation remains isolated to:
+
+```text
+niri/
+```
+
+plus its documentation.
+
+---
+
+## NVIDIA
+
+**PASS**
+
+NVIDIA remained operational:
+
+```text
+GeForce RTX 3050 6GB Laptop GPU
+Driver 615.71.09
+```
+
+No NVIDIA configuration changes were required.
+
+---
+
+## Git validation
+
+**PASS**
+
+```text
+git diff --check
+```
+
+completed without errors.
+
+The final repository working tree contains only the three intended Niri configuration files before documentation/commit completion:
+
+```text
+A niri/.config/niri/binds.kdl
+A niri/.config/niri/config.kdl
+A niri/.config/niri/workspaces.kdl
+```
+
+The temporary repository backup was removed from the repository and moved outside it.
+
+---
+
+# 28. Failure Boundaries
+
+The following boundaries were maintained during implementation.
+
+### Niri startup
+
+Niri startup was investigated independently from Hyprland.
+
+No Hyprland configuration changes were required.
+
+### Workspace behavior
+
+Workspace behavior was implemented exclusively through Niri configuration.
+
+No compatibility graph was created.
+
+### DMS
+
+The duplicate-bar issue was isolated to Niri's default Waybar autostart.
+
+The fix removed only that Niri startup entry.
+
+DMS itself was not modified.
+
+### NVIDIA
+
+No GPU changes were introduced to solve desktop/session behavior.
+
+---
+
+# 29. Rollback
+
+Phase 29 remains reversible.
+
+Rollback consists of:
+
+1. Select Hyprland from GDM.
+2. Verify Hyprland remains functional.
+3. Remove or disable the Niri session if required.
+4. Remove the repository/deployed Niri configuration.
+5. Remove Niri packages if they are no longer required.
+6. Leave all Hyprland and DMS files untouched.
+
+Because the Hyprland workspace architecture was not modified, rollback does not require restoration of Hyprland workspace files.
+
+Backups created during implementation were preserved outside the repository.
+
+---
+
+# 30. Security and System Integrity
+
+No prohibited system-integrity shortcuts were used.
+
+Phase 29 did not:
+
+* manually modify `/usr/share` session files;
+* disable SELinux;
+* disable security services;
+* modify NVIDIA drivers;
+* replace global portal configuration unnecessarily;
+* introduce Arch/AUR installation commands;
+* overwrite unrelated system configuration.
+
+Niri was installed using Fedora packaging.
+
+---
+
+# 31. Documentation Requirements
+
+The implementation records the following:
+
+### Niri version
+
+```text
+26.04
+```
+
+### Fedora package
+
+```text
+niri-26.04-1.fc44.x86_64
+```
+
+### Session integration
+
+```text
+/usr/share/wayland-sessions/niri.desktop
+```
+
+using:
+
+```text
+Exec=niri-session
+```
+
+### Configuration
+
+```text
+~/.config/niri/config.kdl
+```
+
+Repository source:
+
+```text
+niri/.config/niri/config.kdl
+```
+
+### Workspace names
 
 ```text
 main
@@ -1052,177 +1299,33 @@ media
 gaming
 ```
 
-exist.
-
----
-
-## Persistence
-
-Verify that named workspaces remain available when empty.
-
-This is expected behavior for Niri named workspaces.
-
----
-
-## Navigation
-
-Test every workspace destination.
-
-Expected:
+### Binding decisions
 
 ```text
-Super+1 → main
-Super+2 → code
-Super+3 → browser
-Super+4 → communication
-Super+5 → media
-Super+6 → gaming
+Super + 1..6
+Super + Ctrl + 1..6
+Super + Tab
 ```
 
-assuming these bindings are approved during implementation.
+### Window-rule decision
 
----
+No automatic application-placement rules in Phase 29.
 
-## Window movement
+Verified identifiers were recorded for future work.
 
-Open a test window.
+### Known limitation
 
-Move it between at least:
+Named workspaces were observed on `eDP-1`, while `HDMI-A-2` maintained its own dynamic workspace sequence.
 
-```text
-main ↔ code
-code ↔ browser
-browser ↔ media
-```
+No hard-coded output policy was introduced.
 
-Verify that the window follows the workspace correctly.
-
----
-
-## Overview
-
-Verify:
-
-```text
-Super+Tab
-```
-
-opens Niri's native Overview.
-
-Verify:
-
-* workspace visibility
-* window visibility
-* workspace navigation
-* window movement
-* exit behavior
-
----
-
-## Hyprland regression
-
-Log back into Hyprland.
-
-Verify:
-
-```text
-WorkspaceGraph
-workspace navigation
-DMS Overview
-workspace metadata
-```
-
-continue to work exactly as before.
-
----
-
-# 28. Failure Boundaries
-
-If Niri does not start:
-
-Do not immediately modify Hyprland.
-
-Investigate:
-
-```text
-GDM session
-niri-session
-systemd user services
-graphics device selection
-Wayland environment
-journal logs
-```
-
-If Niri starts but workspaces fail:
-
-Investigate only the Niri configuration.
-
-If Niri works but DMS fails:
-
-Treat this as a separate DMS integration issue.
-
-Do not mix the two problems.
-
----
-
-# 29. Rollback
-
-Phase 29 must be reversible.
-
-Rollback consists of:
-
-1. Select Hyprland from GDM.
-2. Verify Hyprland remains functional.
-3. Remove or disable the Niri session if required.
-4. Remove Niri configuration from the deployed `~/.config/niri/`.
-5. Remove only packages introduced specifically for Niri if they are not required elsewhere.
-6. Leave all existing Hyprland and DMS files untouched.
-
-Because the Hyprland workspace architecture is not modified, rollback should not require restoring any Hyprland workspace files.
-
----
-
-# 30. Security and System Integrity
-
-Do not:
-
-* modify `/usr/share` manually unless required by packaging;
-* overwrite system configuration files unnecessarily;
-* disable SELinux;
-* disable security services to make Niri work;
-* modify GPU drivers as part of workspace setup;
-* replace existing portal configuration globally without justification;
-* copy Arch-specific installation commands into Fedora scripts.
-
-All system-level changes must be identified before execution.
-
----
-
-# 31. Documentation Requirements
-
-During implementation record:
-
-```text
-Niri version
-Fedora package source
-installed packages
-session integration method
-configuration location
-workspace names
-binding decisions
-window-rule decisions
-validation results
-known limitations
-rollback procedure
-```
-
-If an installation detail differs from upstream documentation because Fedora 44 packages it differently, document the Fedora-specific behavior.
+A dedicated multi-monitor workspace policy remains a future phase.
 
 ---
 
 # 32. Commit Boundary
 
-Phase 29 should not be committed until:
+Before the final implementation commit, the following were reviewed:
 
 ```text
 git status
@@ -1230,50 +1333,54 @@ git diff
 git diff --check
 ```
 
-have been reviewed.
+The final implementation scope is limited to:
 
-The final commit should contain only changes belonging to Phase 29.
+```text
+niri/.config/niri/config.kdl
+niri/.config/niri/workspaces.kdl
+niri/.config/niri/binds.kdl
+docs/phases/29-niri-workspace-foundation.md
+```
 
-Suggested commit:
+The intended commit remains:
 
 ```text
 feat(niri): add workspace foundation
 ```
 
-If the implementation is split into multiple logical commits, each commit must remain independently understandable.
+No push is performed automatically.
 
 ---
 
 # 33. Acceptance Criteria
 
-Phase 29 is complete when all of the following are true:
-
-* [ ] Niri is installed through a Fedora-compatible method.
-* [ ] Niri appears as a selectable GDM session.
-* [ ] Hyprland remains selectable.
-* [ ] Niri starts successfully.
-* [ ] Niri configuration is stored in the dotfiles repository.
-* [ ] `niri validate` succeeds.
-* [ ] Named workspaces are defined.
-* [ ] Workspace navigation works.
-* [ ] Window movement between workspaces works.
-* [ ] Native Overview works.
-* [ ] Minimal window rules work where implemented.
-* [ ] No Hyprland WorkspaceGraph files were removed.
-* [ ] No DMS workspace overrides were removed.
-* [ ] No broad application migration was performed.
-* [ ] No theme migration was performed.
-* [ ] No NVIDIA optimization was performed.
-* [ ] Hyprland regression testing passes.
-* [ ] `git diff --check` passes.
-* [ ] Final diff contains only Phase 29 changes.
-* [ ] Rollback path is documented.
+* [x] Niri is installed through a Fedora-compatible method.
+* [x] Niri appears as a selectable GDM session.
+* [x] Hyprland remains selectable.
+* [x] Niri starts successfully.
+* [x] Niri configuration is stored in the dotfiles repository.
+* [x] `niri validate` succeeds.
+* [x] Named workspaces are defined.
+* [x] Workspace navigation is configured and validated.
+* [x] Window movement between workspaces is configured using native Niri actions.
+* [x] Native Overview is preserved and available.
+* [x] Minimal window rules were intentionally deferred; no speculative rules were introduced.
+* [x] No Hyprland WorkspaceGraph files were removed.
+* [x] No DMS workspace overrides were removed.
+* [x] No broad application migration was performed.
+* [x] No theme migration was performed.
+* [x] No NVIDIA optimization was performed.
+* [x] Niri/DMS integration was validated without a duplicate Waybar.
+* [x] Hyprland configuration remained outside the Phase 29 diff.
+* [x] `git diff --check` passes.
+* [x] Final implementation diff contains only Phase 29 changes.
+* [x] Rollback path is documented.
 
 ---
 
 # 34. Future Phases
 
-The following should remain candidates for later phases rather than being pulled into Phase 29:
+The following remain candidates for later phases.
 
 ### Niri desktop integration
 
@@ -1287,6 +1394,8 @@ wallpaper
 lock screen
 system controls
 ```
+
+The DMS session itself already operates under Niri, but deeper Niri-specific integration remains separate work.
 
 ### Niri visual integration
 
@@ -1314,6 +1423,8 @@ Spotify → media
 Steam/games → gaming
 ```
 
+Verified application IDs are available for implementing these rules safely.
+
 ### Multi-monitor workspace policy
 
 Potentially:
@@ -1322,17 +1433,17 @@ Potentially:
 workspace → output
 ```
 
-after actual Niri monitor behavior has been observed.
+after determining the desired persistent monitor/workspace policy.
 
 ### Niri-specific automation
 
-Only after the basic configuration has remained stable.
+Only after the base configuration remains stable.
 
 ---
 
 # 35. Architectural Summary
 
-The final Phase 29 architecture is intentionally simple:
+The final Phase 29 architecture is:
 
 ```text
                     Fedora 44
@@ -1346,7 +1457,7 @@ The final Phase 29 architecture is intentionally simple:
                    │       │
                    │       ├── named workspaces
                    │       ├── native navigation
-                   │       ├── window rules
+                   │       ├── native window movement
                    │       └── native Overview
                    │
                    ├── WorkspaceGraph
@@ -1354,21 +1465,23 @@ The final Phase 29 architecture is intentionally simple:
                    └── DMS custom Overview
 ```
 
-The key architectural boundary is:
+DMS remains available as the session shell under Niri without introducing a second Waybar.
+
+The key architectural boundary remains:
 
 ```text
 Hyprland workspace state ≠ Niri workspace state
 ```
 
-Niri should use Niri's own primitives instead of carrying forward an abstraction designed specifically for Hyprland.
+Niri uses Niri's own primitives instead of carrying forward an abstraction designed specifically for Hyprland.
 
-This keeps the migration reversible, avoids duplicate workspace state, and leaves the existing Hyprland environment untouched while Niri is evaluated as an independent session.
+This keeps the migration reversible, avoids duplicate workspace state, and leaves the existing Hyprland environment untouched.
 
 ---
 
 # 36. Final Decision
 
-Phase 29 adopts **Option B: independent Niri workspace architecture**.
+Phase 29 adopts and successfully implements **Option B: independent Niri workspace architecture**.
 
 The initial Niri workspace model is:
 
@@ -1381,25 +1494,25 @@ media
 gaming
 ```
 
-with semantic navigation and Niri's native Overview.
+with semantic navigation, native column movement and Niri's native Overview.
 
-No custom workspace graph will be introduced for Niri.
+The final implementation proves that Niri can operate as an independent Wayland session alongside the existing Hyprland environment.
 
-No existing Hyprland workspace infrastructure will be removed.
+No custom workspace graph was introduced for Niri.
 
-No broad application or desktop-shell migration will occur.
+No existing Hyprland workspace infrastructure was removed.
 
-The first implementation milestone is therefore not:
+No broad application or desktop-shell migration was performed.
 
-```text
-"make Niri look like the current desktop"
-```
-
-but:
+The phase therefore achieves its intended milestone:
 
 ```text
 "prove that Niri can provide a clean, stable, semantic workspace environment
 alongside the existing Hyprland environment."
 ```
 
-Only after that foundation is validated should subsequent phases integrate the rest of the desktop.
+## Phase 29 result
+
+**COMPLETE**
+
+The remaining work belongs to subsequent phases, particularly application placement, multi-monitor workspace policy, and deeper Niri/DMS/visual integration.

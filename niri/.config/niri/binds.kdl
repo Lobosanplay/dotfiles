@@ -1,0 +1,20 @@
+binds {
+    // Semantic workspace navigation.
+    Mod+1 { focus-workspace "main"; }
+    Mod+2 { focus-workspace "code"; }
+    Mod+3 { focus-workspace "browser"; }
+    Mod+4 { focus-workspace "communication"; }
+    Mod+5 { focus-workspace "media"; }
+    Mod+6 { focus-workspace "gaming"; }
+
+    // Move the focused column to a semantic workspace.
+    Mod+Ctrl+1 { move-column-to-workspace "main"; }
+    Mod+Ctrl+2 { move-column-to-workspace "code"; }
+    Mod+Ctrl+3 { move-column-to-workspace "browser"; }
+    Mod+Ctrl+4 { move-column-to-workspace "communication"; }
+    Mod+Ctrl+5 { move-column-to-workspace "media"; }
+    Mod+Ctrl+6 { move-column-to-workspace "gaming"; }
+
+    // Toggle between the current and previous workspace.
+    Mod+Tab repeat=false { focus-workspace-previous; }
+}
