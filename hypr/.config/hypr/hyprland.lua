@@ -33,6 +33,7 @@ require("modules.workspaces")
 require("modules.workspace_metadata")
 require("modules.keybinds")
 require("modules.app_min_sizes")
+require("modules.autostart")
 require("modules.dms")
 
 -- DMS_STARTUP_BEGIN
