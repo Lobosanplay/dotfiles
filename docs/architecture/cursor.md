@@ -18,10 +18,51 @@ DMS regenerates it from its settings.
 
 DMS currently stores `Frieren-Winter` at size 36. The Xcursor assets are
 installed under `~/.icons/Frieren-Winter`; a matching Hyprcursor theme is
-installed under `~/.local/share/icons/Frieren-Winter`. The Hyprcursor theme
-contains 24 px and 36 px images so Hyprland can load the compositor-native
-cursor at 24 logical px when accounting for the machine's 1.5 maximum output
-scale. Both theme installations are machine-local and are not versioned.
+installed under `~/.local/share/icons/Frieren-Winter`. Both theme
+installations are machine-local and are not versioned.
+
+## Uniform size across applications
+
+Neither libXcursor nor Hyprcursor rescales a theme to the requested size: each
+picks the nearest image size the theme ships. A theme whose formats ship
+different sizes is therefore drawn at different sizes depending on the
+client path:
+
+| Client path | Format read | Examples |
+| --- | --- | --- |
+| Compositor-drawn (cursor-shape protocol) | Hyprcursor | GTK4, Chromium/Electron, Kitty |
+| Client-drawn Wayland | Xcursor | GTK3 and older toolkits |
+| XWayland | Xcursor (via the X server) | Minecraft/Lunar Client (LWJGL), Java, X11 apps |
+
+`scripts/cursor_sync.py` keeps one size everywhere. It reads the DMS
+preference (DMS stays the only owner) and:
+
+1. For a user-installed theme, snapshots the original art once to
+   `~/.local/share/dotfiles/cursor-sources/<theme>/` and regenerates both
+   formats from it with exactly the preferred size and its physical size on
+   each monitor scale (plus 2×). For 36 px on scales 1 and 1.5 that is 36, 54,
+   and 72 px. No smaller size is generated, so a client that requests a
+   default such as 24 resolves to the preferred size. The original theme
+   directory gets a `.dotfiles-cursor-generated` marker. System themes under
+   `/usr/share/icons` are never modified.
+2. Points the remaining consumers at the same theme and size: GSettings,
+   `~/.icons/default/index.theme`, `~/.Xresources` (merged into XWayland with
+   `xrdb`), and the Flatpak user override environment.
+3. Reloads Hyprland's cursor with `hyprctl setcursor` after regenerating.
+
+`--check` reports drift and exits 1; `--apply` is idempotent and only
+resamples when the theme, size, monitor scales, or source change (state in
+`~/.local/state/dotfiles/cursor-sync.json`). The user units
+`dotfiles-cursor-sync.service` (run at login) and `dotfiles-cursor-sync.path`
+(run when DMS saves `settings.json`) apply it automatically, so changing the
+cursor in DMS settings is the only step needed. Applications that are already
+running keep the cursor images they loaded; restart XWayland apps to pick up
+regenerated images.
+
+To return to the original theme files, copy
+`~/.local/share/dotfiles/cursor-sources/<theme>/cursors` back into the theme
+directory (and `hyprcursor/` into the Hyprcursor theme), remove the marker,
+and disable the two units.
 
 At Hyprland startup, the existing startup hook calls
 `dbus-update-activation-environment --systemd --all` so the compositor's
@@ -48,9 +89,11 @@ The user-local `~/.icons/default/index.theme` inherits `Frieren-Winter` so
 legacy Xcursor clients that request the default theme resolve to the selected
 cursor. Flatpak user overrides grant read-only access to `~/.icons` and export
 `XCURSOR_THEME=Frieren-Winter`, `XCURSOR_SIZE=36`, and a search path containing
-the user theme directory. These are machine-local runtime settings and are
-not managed by the repository. Newly launched applications pick up the
-settings; already-running XWayland clients may need to be restarted.
+the user theme directory. These are machine-local runtime settings; the theme
+and size values are kept in sync by `scripts/cursor_sync.py`, while the
+filesystem grant and `XCURSOR_PATH` remain manual. Newly launched applications
+pick up the settings; already-running XWayland clients may need to be
+restarted.
 
 Application backend selection remains per application. Use native Wayland when
 the app supports it and behaves correctly; keep XWayland available for legacy

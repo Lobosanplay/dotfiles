@@ -1,0 +1,10 @@
+# Re-runs the cursor sync when DMS saves its settings (cursor changes included).
+[Unit]
+Description=Watch DMS settings for cursor changes
+
+[Path]
+PathChanged=%h/.config/DankMaterialShell/settings.json
+Unit=dotfiles-cursor-sync.service
+
+[Install]
+WantedBy=hyprland-session.target

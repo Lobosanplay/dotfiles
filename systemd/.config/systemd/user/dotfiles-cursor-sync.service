@@ -1,0 +1,14 @@
+# Applies the DMS cursor preference to every cursor consumer (Xcursor and
+# Hyprcursor images, GSettings, Xresources, Flatpak). Started at login and by
+# dotfiles-cursor-sync.path whenever DMS saves its settings; a no-op when
+# nothing changed. See ~/Documents/projects/dotfiles/docs/architecture/cursor.md.
+[Unit]
+Description=Sync cursor theme and size from DMS settings
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -B %h/Documents/projects/dotfiles/scripts/cursor_sync.py --apply
+
+[Install]
+WantedBy=hyprland-session.target
