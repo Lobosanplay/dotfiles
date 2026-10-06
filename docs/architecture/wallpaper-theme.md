@@ -105,7 +105,7 @@ before Phase 19). Keep DMS's **Run User Templates** option enabled. The link
 was created with:
 
 ```bash
-ln -s ~/dotfiles/matugen/.config/matugen ~/.config/matugen
+ln -s ~/Documents/projects/dotfiles/matugen/.config/matugen ~/.config/matugen
 ```
 
 Remove that link to disable this project's template. Do not replace an
