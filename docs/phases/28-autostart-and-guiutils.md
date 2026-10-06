@@ -9,7 +9,7 @@
 
 ## Status
 
-Autostart implemented and applied. Placement was verified live with the
+Autostart implemented and applied (commit `d62c2a4`). Placement was verified live with the
 startup logic run on config load; a real login was not observed. The
 `hyprland-guiutils` package was not installed by the agent (requires
 `sudo`); the install path was verified with a dry run.
