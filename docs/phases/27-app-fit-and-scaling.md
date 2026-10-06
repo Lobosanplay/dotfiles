@@ -9,7 +9,7 @@ must fit the provided display.
 
 ## Status
 
-Implemented and applied. Vesktop and Spotify were verified visually at their
+Implemented and applied (commit `4533b37`). Vesktop and Spotify were verified visually at their
 new widths. Lunar Client/Minecraft with the XWayland filter change was not
 observed.
 
