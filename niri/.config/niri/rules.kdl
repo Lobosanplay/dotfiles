@@ -1,0 +1,25 @@
+/*
+ * Niri window rules
+ *
+ * Phase 31:
+ * - Persistent media workspace
+ * - Dynamic placement for general applications
+ */
+
+/*
+ * Spotify -> media workspace on HDMI-A-2
+ */
+window-rule {
+    match app-id="^spotify$"
+    open-on-output "HDMI-A-2"
+    open-on-workspace "media"
+}
+
+/*
+ * Vesktop -> media workspace on HDMI-A-2
+ */
+window-rule {
+    match app-id="^vesktop$"
+    open-on-output "HDMI-A-2"
+    open-on-workspace "media"
+}

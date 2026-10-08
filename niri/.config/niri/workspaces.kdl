@@ -1,6 +1,22 @@
-workspace "main"
-workspace "code"
-workspace "browser"
-workspace "communication"
-workspace "media"
-workspace "gaming"
+/*
+ * Persistent workspace layout
+ *
+ * eDP-1:
+ * - main
+ * - gaming
+ *
+ * HDMI-A-2:
+ * - media
+ */
+
+workspace "main" {
+    open-on-output "eDP-1"
+}
+
+workspace "gaming" {
+    open-on-output "eDP-1"
+}
+
+workspace "media" {
+    open-on-output "HDMI-A-2"
+}

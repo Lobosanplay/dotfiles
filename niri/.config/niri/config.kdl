@@ -348,6 +348,7 @@ window-rule {
 
 include "workspaces.kdl"
 include "binds.kdl"
+include "rules.kdl"
 
 binds {
     // Keys consist of modifiers separated by + signs, followed by an XKB key name
