@@ -1,0 +1,1495 @@
+# Fase 31 — Niri UX Visual, Window Rules y Navegación
+
+**Estado:** Planificada
+**Objetivo:** Mejorar la experiencia de uso de Niri mediante efectos visuales controlados, reglas específicas de ventanas, navegación espacial IJKL y recuperación del Power Menu de DMS.
+
+---
+
+## 1. Objetivo de la fase
+
+La Fase 31 tiene como objetivo consolidar la experiencia de Niri como entorno principal de trabajo, manteniendo una configuración modular y evitando modificar componentes que no pertenecen al alcance de esta fase.
+
+Los cambios estarán centrados exclusivamente en:
+
+* Niri Overview.
+* Blur y efectos visuales.
+* Transparencia de Kitty.
+* Window rules.
+* Organización automática de aplicaciones por workspace.
+* Navegación espacial mediante IJKL.
+* Power Menu de DMS.
+* Organización de la configuración de Niri.
+* Validación y documentación.
+
+### Resultado esperado
+
+La experiencia final deberá permitir:
+
+```text
+Super+O
+    ↓
+Niri Overview
+    ↓
+Vista general del escritorio
+    ↓
+Backdrop controlado + efectos visuales
+```
+
+Y:
+
+```text
+Super+I → workspace superior
+Super+K → workspace inferior
+Super+J → monitor izquierdo
+Super+L → monitor derecho
+```
+
+Además:
+
+```text
+Super+X → DMS Power Menu
+```
+
+Las aplicaciones deberán ser dirigidas automáticamente a sus workspaces correspondientes:
+
+```text
+Brave    → browser
+Zed      → code
+Vesktop  → communication
+Spotify  → media
+```
+
+Kitty tendrá:
+
+```text
+opacity = 0.92
+blur = enabled
+```
+
+sin convertir todas las ventanas del sistema en transparentes.
+
+---
+
+# 2. Alcance
+
+## Incluido
+
+### Niri
+
+* `config.kdl`
+* `workspaces.kdl`
+* `binds.kdl`
+* `rules.kdl`
+* Overview.
+* Blur.
+* Animaciones relacionadas con los cambios.
+* Window rules.
+* Workspace assignment.
+* Keybindings.
+* Validación de configuración.
+
+### Kitty
+
+* Reutilizar la transparencia existente.
+* Activar blur mediante Niri.
+* No modificar innecesariamente la configuración propia de Kitty.
+
+### Spotify
+
+* Workspace `media`.
+* Regla visual específica si Niri y Spotify permiten aplicar correctamente la configuración.
+* Investigación/validación de CSD si fuese necesaria.
+
+### DMS
+
+* Mantener DMS únicamente como proveedor del Power Menu.
+* Recuperar `Super+X`.
+
+---
+
+# 3. Fuera de alcance
+
+No se modificará ningún componente relacionado con:
+
+* Hyprland WorkspaceGraph.
+* DMS Workspace Overview.
+* NVIDIA.
+* PRIME.
+* Drivers gráficos.
+* XDG Desktop Portals.
+* Waybar.
+* GDM.
+* Sesiones de login.
+* Instalación de nuevas aplicaciones.
+* Reemplazo del compositor.
+* Configuración global de GTK.
+* Configuración global de Qt.
+* Configuración global de aplicaciones.
+
+La fase tampoco intentará convertir Niri en una copia exacta de Hyprland o DMS.
+
+El objetivo es aprovechar las capacidades nativas de Niri.
+
+---
+
+# 4. Arquitectura objetivo
+
+La configuración final de Niri tendrá esta estructura:
+
+```text
+niri/.config/niri/
+├── config.kdl
+├── workspaces.kdl
+├── binds.kdl
+└── rules.kdl
+```
+
+Cada archivo tendrá una responsabilidad clara.
+
+---
+
+## 4.1 `config.kdl`
+
+Responsable de la configuración global:
+
+* layout.
+* gaps.
+* borders.
+* shadows.
+* animaciones.
+* blur global.
+* Overview.
+* comportamiento general.
+* includes.
+
+No deberá contener reglas específicas de aplicaciones.
+
+---
+
+## 4.2 `workspaces.kdl`
+
+Responsable exclusivamente de declarar los workspaces.
+
+Workspaces previstos:
+
+```text
+main
+code
+browser
+communication
+media
+gaming
+```
+
+No deberá contener:
+
+* keybindings.
+* reglas de ventanas.
+* efectos visuales.
+* configuración de aplicaciones.
+
+---
+
+## 4.3 `binds.kdl`
+
+Responsable exclusivamente de los controles del usuario.
+
+Debe contener:
+
+```text
+Super+1..6
+Super+Ctrl+1..6
+
+Super+I
+Super+K
+Super+J
+Super+L
+
+Super+Tab
+
+Super+Space
+Super+D
+Super+T
+Super+Q
+Super+X
+
+Super+O
+```
+
+No deberá contener reglas de ventanas ni configuración visual.
+
+---
+
+## 4.4 `rules.kdl`
+
+Responsable exclusivamente del comportamiento de las ventanas.
+
+Debe contener inicialmente:
+
+```text
+Brave    → browser
+Zed      → code
+Vesktop  → communication
+Spotify  → media
+Kitty    → blur
+```
+
+También se utilizará este archivo para cualquier comportamiento específico de Spotify que sea compatible con la configuración real de Niri.
+
+---
+
+# 5. Preparación — READ ONLY
+
+Antes de modificar cualquier archivo se deberá inspeccionar el estado actual.
+
+## 5.1 Verificar repositorio
+
+Ejecutar desde:
+
+```bash
+cd ~/Documents/projects/dotfiles
+```
+
+Comprobar:
+
+```bash
+git status --short
+```
+
+Y:
+
+```bash
+git branch --show-current
+```
+
+### Criterio
+
+No comenzar modificaciones si existen cambios desconocidos o no relacionados con la Fase 31.
+
+Si existen modificaciones previas:
+
+```text
+MODIFY PAUSED
+```
+
+hasta determinar qué cambios pertenecen al trabajo anterior.
+
+---
+
+# 6. Inspección de archivos actuales
+
+Comprobar:
+
+```bash
+ls -la niri/.config/niri/
+```
+
+Después:
+
+```bash
+sed -n '1,260p' niri/.config/niri/config.kdl
+```
+
+```bash
+sed -n '1,260p' niri/.config/niri/binds.kdl
+```
+
+```bash
+sed -n '1,260p' niri/.config/niri/workspaces.kdl
+```
+
+Si `rules.kdl` todavía no existe:
+
+```text
+rules.kdl → crear durante MODIFY
+```
+
+También comprobar los includes actuales:
+
+```bash
+grep -n "include" niri/.config/niri/config.kdl
+```
+
+---
+
+# 7. Backup
+
+Antes de modificar los archivos activos:
+
+```bash
+cp ~/.config/niri/config.kdl ~/.config/niri/config.kdl.phase31.bak
+```
+
+Si existe:
+
+```bash
+cp ~/.config/niri/binds.kdl ~/.config/niri/binds.kdl.phase31.bak
+```
+
+Y para los archivos del repositorio:
+
+```bash
+cp niri/.config/niri/config.kdl niri/.config/niri/config.kdl.phase31.bak
+```
+
+```bash
+cp niri/.config/niri/binds.kdl niri/.config/niri/binds.kdl.phase31.bak
+```
+
+Los backups del repositorio deberán considerarse temporales y **no deberán terminar incluidos en el commit**, salvo que exista una razón explícita para conservarlos.
+
+---
+
+# 8. Configuración del Overview
+
+## Objetivo
+
+Mantener el Overview nativo de Niri mediante:
+
+```text
+Super+O
+```
+
+No se reemplazará por DMS.
+
+---
+
+## 8.1 Backdrop
+
+Niri 26.04 no debe configurarse intentando conseguir transparencia mediante alpha en:
+
+```kdl
+overview {
+    backdrop-color ...
+}
+```
+
+El canal alpha del `backdrop-color` del Overview no proporciona la transparencia esperada.
+
+Por lo tanto:
+
+```text
+NO:
+backdrop-color "#00000000"
+```
+
+La configuración deberá utilizar un color sólido válido y visualmente apropiado.
+
+---
+
+## 8.2 Principio visual
+
+El Overview debe ser:
+
+* oscuro.
+* limpio.
+* poco invasivo.
+* consistente con el tema.
+* suficientemente contrastado para distinguir las ventanas.
+* compatible con el wallpaper sin depender de alpha inexistente.
+
+La configuración exacta del color deberá basarse en el estado actual del tema y probarse visualmente.
+
+---
+
+# 9. Blur global
+
+Configurar el bloque de blur de Niri cuando sea compatible con la configuración instalada:
+
+```kdl
+blur {
+    passes 3
+    offset 3
+    noise 0.02
+    saturation 1.5
+}
+```
+
+## Objetivo
+
+Proporcionar una base de blur que pueda ser utilizada por las ventanas que explícitamente soliciten:
+
+```kdl
+background-effect {
+    blur true
+}
+```
+
+No se deben crear reglas que obliguen a todas las aplicaciones a ser transparentes.
+
+---
+
+# 10. Kitty — transparencia + blur
+
+La configuración actual de Kitty ya contiene:
+
+```text
+background_opacity 0.92
+```
+
+Esta configuración deberá conservarse.
+
+No se modificará:
+
+```text
+kitty/.config/kitty/dotfiles-theme.conf
+```
+
+salvo que una prueba demuestre que es estrictamente necesario.
+
+---
+
+## 10.1 Regla Niri
+
+En:
+
+```text
+niri/.config/niri/rules.kdl
+```
+
+añadir una regla específica para Kitty:
+
+```kdl
+window-rule {
+    match app-id="kitty"
+
+    background-effect {
+        blur true
+    }
+}
+```
+
+La intención es:
+
+```text
+Kitty
+│
+├── Kitty controla opacity
+│   └── 0.92
+│
+└── Niri controla blur
+    └── enabled
+```
+
+Esto mantiene la responsabilidad correctamente separada.
+
+---
+
+# 11. Workspace assignments
+
+Crear reglas para las aplicaciones conocidas.
+
+## Brave
+
+```text
+app-id → browser
+```
+
+## Zed
+
+```text
+app-id → code
+```
+
+## Vesktop
+
+```text
+app-id → communication
+```
+
+## Spotify
+
+```text
+app-id → media
+```
+
+## Gaming
+
+No crear todavía reglas genéricas para todos los juegos.
+
+La workspace `gaming` permanece disponible para configuración futura.
+
+---
+
+# 12. Identificación de app-id
+
+Antes de escribir reglas definitivas se deberá comprobar el identificador real de cada aplicación.
+
+Para Niri puede utilizarse:
+
+```bash
+niri msg -j windows
+```
+
+y revisar:
+
+```text
+app_id
+title
+workspace_id
+```
+
+La información real obtenida deberá utilizarse en las reglas.
+
+No asumir que:
+
+```text
+spotify
+```
+
+o:
+
+```text
+dev.zed.Zed
+```
+
+son necesariamente los valores actuales sin comprobarlos.
+
+---
+
+# 13. Regla de Spotify
+
+Spotify tendrá inicialmente:
+
+```text
+workspace = media
+```
+
+Después se comprobará qué comportamiento ofrece Niri respecto a decoración/CSD.
+
+---
+
+## 13.1 Restricción importante
+
+No introducir una regla falsa como:
+
+```kdl
+window-rule {
+    match app-id="spotify"
+    prefer-no-csd
+}
+```
+
+si la sintaxis no está soportada por Niri 26.04.
+
+`prefer-no-csd` deberá tratarse como una opción global cuando corresponda.
+
+---
+
+## 13.2 Estrategia
+
+### Paso 1
+
+Intentar una solución soportada por las propiedades reales de `window-rule`.
+
+### Paso 2
+
+Abrir Spotify.
+
+### Paso 3
+
+Comprobar visualmente:
+
+* titlebar.
+* decoración.
+* borde.
+* background.
+* CSD.
+* comportamiento tiled.
+
+### Paso 4
+
+Si Spotify responde correctamente:
+
+```text
+KEEP
+```
+
+### Paso 5
+
+Si Spotify no responde:
+
+```text
+DO NOT FORCE
+```
+
+y documentar la limitación.
+
+Después se decidirá si:
+
+```text
+A) prefer-no-csd global
+```
+
+o:
+
+```text
+B) solución específica de Spotify
+```
+
+La decisión quedará fuera del cambio inicial si requiere ampliar el alcance.
+
+---
+
+# 14. Navegación IJKL
+
+La navegación se adaptará a la filosofía espacial IJKL.
+
+Mapa:
+
+```text
+             I
+             ↑
+             │
+       J ← workspace → L
+             │
+             ↓
+             K
+```
+
+Bindings:
+
+```kdl
+Mod+I { focus-workspace-up; }
+Mod+K { focus-workspace-down; }
+Mod+J { focus-monitor-left; }
+Mod+L { focus-monitor-right; }
+```
+
+---
+
+## 14.1 Conflictos existentes
+
+La configuración actual utiliza:
+
+```text
+Super+J → focus-window-down
+Super+K → focus-window-up
+Super+L → focus-column-right
+```
+
+Estos bindings deberán eliminarse o reemplazarse.
+
+No deben coexistir dos acciones para la misma combinación.
+
+---
+
+# 15. Power Menu
+
+Recuperar el Power Menu de DMS mediante:
+
+```kdl
+Mod+X {
+    spawn "dms" "ipc" "call" "powermenu" "toggle";
+}
+```
+
+## Objetivo
+
+```text
+Super+X
+    ↓
+DMS IPC
+    ↓
+Power Menu
+```
+
+No se instalará ningún nuevo launcher ni power menu.
+
+Se reutilizará el componente existente.
+
+---
+
+# 16. Overview binding
+
+Conservar:
+
+```text
+Super+O
+```
+
+para el Overview nativo de Niri.
+
+No reemplazarlo por:
+
+```text
+dms overview
+```
+
+ni por otro sistema externo.
+
+---
+
+# 17. Organización de `binds.kdl`
+
+La estructura recomendada será:
+
+```kdl
+// Workspace selection
+...
+
+// Workspace movement
+...
+
+// Monitor navigation
+...
+
+// Window/application controls
+...
+
+// Overview
+...
+
+// DMS integrations
+...
+```
+
+Esto permitirá mantener los bindings legibles y evitar duplicados.
+
+---
+
+# 18. Organización de `rules.kdl`
+
+La estructura recomendada será:
+
+```kdl
+// Workspace assignments
+
+// Brave
+...
+
+// Zed
+...
+
+// Vesktop
+...
+
+// Spotify
+...
+
+// Kitty visual effects
+...
+```
+
+Las reglas deberán permanecer específicas.
+
+No crear reglas globales innecesarias.
+
+---
+
+# 19. Includes
+
+`config.kdl` deberá incluir los archivos modulares:
+
+```kdl
+include "workspaces.kdl"
+include "binds.kdl"
+include "rules.kdl"
+```
+
+La sintaxis exacta deberá conservar el formato que ya utilice la configuración existente.
+
+No duplicar configuraciones que ya existan en `config.kdl`.
+
+---
+
+# 20. Validación sintáctica
+
+Después de modificar los archivos:
+
+```bash
+niri validate
+```
+
+La validación deberá finalizar sin errores.
+
+Si aparece cualquier error:
+
+```text
+STOP
+```
+
+No continuar con la sincronización de la configuración activa hasta corregirlo.
+
+---
+
+# 21. Validación de includes
+
+Comprobar que todos los archivos incluidos existen:
+
+```bash
+ls -l niri/.config/niri/
+```
+
+Y comprobar los includes:
+
+```bash
+grep -n "include" niri/.config/niri/config.kdl
+```
+
+Debe existir correspondencia entre:
+
+```text
+include → archivo real
+```
+
+---
+
+# 22. Sincronización con configuración activa
+
+Una vez validado el repositorio, sincronizar:
+
+```text
+repo
+ ↓
+~/.config/niri/
+```
+
+La estrategia exacta deberá respetar el mecanismo utilizado actualmente por los dotfiles.
+
+No asumir que:
+
+```bash
+cp -r
+```
+
+es la forma correcta si el repositorio ya utiliza symlinks.
+
+Primero comprobar:
+
+```bash
+ls -la ~/.config/niri/
+```
+
+y:
+
+```bash
+readlink -f ~/.config/niri/config.kdl
+```
+
+---
+
+# 23. Recarga de Niri
+
+Después de sincronizar:
+
+```bash
+niri msg action load-config-file
+```
+
+o el mecanismo de recarga soportado por la instalación actual.
+
+Si la configuración no puede recargarse en caliente:
+
+```text
+STOP
+```
+
+y documentar que será necesaria una nueva sesión.
+
+No cerrar la sesión automáticamente.
+
+---
+
+# 24. Pruebas funcionales
+
+## 24.1 Overview
+
+Probar:
+
+```text
+Super+O
+```
+
+Verificar:
+
+* Overview aparece.
+* No hay error de configuración.
+* backdrop funciona.
+* animación funciona.
+* ventanas permanecen correctamente posicionadas.
+
+---
+
+## 24.2 Workspace navigation
+
+Probar:
+
+```text
+Super+I
+Super+K
+Super+J
+Super+L
+```
+
+Verificar:
+
+```text
+I → workspace arriba
+K → workspace abajo
+J → monitor izquierdo
+L → monitor derecho
+```
+
+---
+
+## 24.3 Workspace selection
+
+Probar:
+
+```text
+Super+1
+Super+2
+Super+3
+Super+4
+Super+5
+Super+6
+```
+
+Verificar:
+
+```text
+1 → main
+2 → code
+3 → browser
+4 → communication
+5 → media
+6 → gaming
+```
+
+El orden exacto deberá coincidir con la configuración real de `workspaces.kdl`.
+
+---
+
+# 25. Pruebas de aplicaciones
+
+## Brave
+
+Abrir Brave y comprobar:
+
+```text
+workspace = browser
+```
+
+## Zed
+
+Abrir Zed y comprobar:
+
+```text
+workspace = code
+```
+
+## Vesktop
+
+Abrir Vesktop y comprobar:
+
+```text
+workspace = communication
+```
+
+## Spotify
+
+Abrir Spotify y comprobar:
+
+```text
+workspace = media
+```
+
+Además:
+
+* decoración.
+* CSD.
+* borde.
+* apariencia.
+
+## Kitty
+
+Abrir Kitty y comprobar:
+
+```text
+opacity ≈ 0.92
+blur = activo
+```
+
+La transparencia debe mostrar el contenido situado detrás de la ventana de acuerdo con la composición de Niri.
+
+---
+
+# 26. Prueba de Power Menu
+
+Ejecutar:
+
+```text
+Super+X
+```
+
+Resultado esperado:
+
+```text
+DMS Power Menu
+```
+
+Si no aparece, comprobar manualmente:
+
+```bash
+dms ipc call powermenu toggle
+```
+
+Si el comando manual funciona pero el binding no:
+
+```text
+revisar binds.kdl
+```
+
+Si el comando manual tampoco funciona:
+
+```text
+NO modificar DMS durante esta fase
+```
+
+Documentar el problema para una fase posterior.
+
+---
+
+# 27. Prueba de conflictos
+
+Buscar bindings duplicados:
+
+```bash
+grep -R "Mod+J\|Mod+K\|Mod+L\|Mod+X\|Mod+O" niri/.config/niri/
+```
+
+No deben existir múltiples acciones contradictorias para:
+
+```text
+Mod+J
+Mod+K
+Mod+L
+Mod+X
+Mod+O
+```
+
+---
+
+# 28. Prueba de seguridad de cambios
+
+Antes del commit:
+
+```bash
+git diff --check
+```
+
+Debe finalizar sin errores.
+
+Después:
+
+```bash
+git diff -- niri/.config/niri/
+```
+
+Revisar manualmente:
+
+* cambios esperados.
+* ningún cambio accidental.
+* ningún archivo ajeno a la fase.
+* ningún secreto.
+* ningún backup incluido.
+* ningún cambio en Hyprland.
+* ningún cambio en NVIDIA.
+* ningún cambio en DMS salvo el binding.
+
+---
+
+# 29. Verificación final de alcance
+
+El diff final solo debería contener cambios relacionados con:
+
+```text
+niri/.config/niri/config.kdl
+niri/.config/niri/workspaces.kdl
+niri/.config/niri/binds.kdl
+niri/.config/niri/rules.kdl
+```
+
+Cualquier otro archivo deberá revisarse antes de continuar.
+
+---
+
+# 30. Documentación
+
+Crear o actualizar:
+
+```text
+docs/phase-31.md
+```
+
+La documentación deberá registrar:
+
+### Implementado
+
+* Overview.
+* Blur.
+* Kitty blur.
+* Kitty opacity.
+* Workspace assignments.
+* IJKL.
+* Power Menu.
+* Modularización de reglas.
+
+### Verificado
+
+* `niri validate`.
+* Overview.
+* navegación.
+* workspace assignments.
+* Kitty.
+* Spotify.
+* Power Menu.
+
+### Limitaciones
+
+Especialmente:
+
+```text
+Overview backdrop alpha
+Spotify CSD
+```
+
+si alguna de ellas no puede resolverse con las capacidades reales de Niri 26.04.
+
+---
+
+# 31. Git diff
+
+Ejecutar:
+
+```bash
+git status --short
+```
+
+Después:
+
+```bash
+git diff --stat
+```
+
+Y:
+
+```bash
+git diff
+```
+
+Revisar manualmente todo el cambio.
+
+---
+
+# 32. Commit
+
+Solo después de:
+
+```text
+niri validate → PASS
+functional tests → PASS
+git diff --check → PASS
+manual diff review → PASS
+```
+
+crear el commit.
+
+Mensaje recomendado:
+
+```text
+feat(niri): improve visual UX and spatial navigation
+```
+
+---
+
+# 33. Verificación post-commit
+
+Comprobar:
+
+```bash
+git status --short
+```
+
+El repositorio deberá quedar limpio, excepto por cambios explícitamente intencionados.
+
+Comprobar:
+
+```bash
+git log -1 --oneline
+```
+
+para confirmar el commit.
+
+---
+
+# 34. Criterios de aceptación
+
+La Fase 31 se considera completada cuando:
+
+## Configuración
+
+* [ ] `config.kdl` sigue siendo válido.
+* [ ] `workspaces.kdl` contiene los workspaces previstos.
+* [ ] `binds.kdl` contiene los controles personales.
+* [ ] `rules.kdl` contiene las reglas de ventanas.
+* [ ] Los includes funcionan.
+* [ ] No existen bindings duplicados.
+
+## Overview
+
+* [ ] `Super+O` abre el Overview.
+* [ ] El backdrop tiene apariencia correcta.
+* [ ] No se utiliza alpha esperando transparencia.
+* [ ] Las animaciones funcionan.
+
+## Blur
+
+* [ ] Blur global configurado.
+* [ ] Kitty solicita blur.
+* [ ] Kitty mantiene `background_opacity 0.92`.
+* [ ] No se fuerza transparencia sobre todas las aplicaciones.
+
+## Workspaces
+
+* [ ] Brave → `browser`.
+* [ ] Zed → `code`.
+* [ ] Vesktop → `communication`.
+* [ ] Spotify → `media`.
+
+## Navegación
+
+* [ ] `Super+I` → workspace arriba.
+* [ ] `Super+K` → workspace abajo.
+* [ ] `Super+J` → monitor izquierdo.
+* [ ] `Super+L` → monitor derecho.
+
+## DMS
+
+* [ ] `Super+X` abre Power Menu.
+* [ ] No se modificó el sistema de DMS.
+
+## Validación
+
+* [ ] `niri validate` pasa.
+* [ ] `git diff --check` pasa.
+* [ ] Pruebas visuales completadas.
+* [ ] Pruebas funcionales completadas.
+* [ ] Diff revisado.
+* [ ] Commit creado.
+* [ ] Repositorio limpio.
+
+---
+
+# 35. Plan de rollback
+
+Si la configuración provoca problemas:
+
+## Configuración
+
+Restaurar:
+
+```bash
+cp ~/.config/niri/config.kdl.phase31.bak ~/.config/niri/config.kdl
+```
+
+Y:
+
+```bash
+cp ~/.config/niri/binds.kdl.phase31.bak ~/.config/niri/binds.kdl
+```
+
+Si se creó `rules.kdl` exclusivamente para esta fase, eliminarlo únicamente si no contiene cambios previos.
+
+---
+
+## Git
+
+Si todavía no existe commit:
+
+```bash
+git restore niri/.config/niri/
+```
+
+solo después de confirmar que no existen modificaciones pertenecientes a trabajo previo.
+
+Si la fase ya fue committeada, utilizar:
+
+```bash
+git revert <commit>
+```
+
+en lugar de reescribir historial.
+
+---
+
+# 36. Principios de implementación
+
+Durante toda la fase se seguirán estas reglas:
+
+### 1. No adivinar sintaxis
+
+Si una propiedad de Niri no está confirmada:
+
+```text
+DO NOT ADD
+```
+
+Primero verificar documentación/configuración instalada.
+
+### 2. Preferir capacidades nativas
+
+Siempre que sea posible:
+
+```text
+Niri native
+>
+scripts externos
+>
+workarounds
+```
+
+### 3. Cambios mínimos
+
+No modificar configuraciones que no estén relacionadas directamente con el objetivo.
+
+### 4. Modularidad
+
+Cada archivo debe tener una responsabilidad clara.
+
+### 5. Rollback sencillo
+
+Cada cambio debe poder revertirse individualmente.
+
+### 6. Validar antes de aplicar
+
+```text
+EDIT
+ ↓
+VALIDATE
+ ↓
+SYNC
+ ↓
+TEST
+```
+
+Nunca:
+
+```text
+EDIT
+ ↓
+SYNC
+ ↓
+hope
+```
+
+---
+
+# 37. Flujo completo de ejecución
+
+La Fase 31 deberá ejecutarse exactamente en este orden:
+
+```text
+┌─────────────────────────────┐
+│ 1. git status               │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│ 2. Inspect current config   │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│ 3. Create backups           │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│ 4. Modify repository        │
+│    config/binds/rules/etc.  │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│ 5. niri validate            │
+└──────────────┬──────────────┘
+               ↓
+          PASS │ FAIL
+               │
+               ↓
+┌─────────────────────────────┐
+│ 6. Sync active config       │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│ 7. Reload Niri              │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│ 8. Functional testing       │
+│    Overview                 │
+│    IJKL                    │
+│    Apps                    │
+│    Kitty                   │
+│    Spotify                 │
+│    Power Menu              │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│ 9. git diff --check         │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│ 10. Review git diff         │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│ 11. Document Phase 31       │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│ 12. Commit                  │
+└──────────────┬──────────────┘
+               ↓
+┌─────────────────────────────┐
+│ 13. Post-commit validation  │
+└─────────────────────────────┘
+```
+
+---
+
+# 38. Resultado final esperado
+
+Al finalizar la Fase 31, Niri deberá ofrecer una experiencia organizada de la siguiente manera:
+
+```text
+                    NIRI
+                     │
+       ┌─────────────┼─────────────┐
+       │             │             │
+   Overview       Navigation     Rules
+       │             │             │
+    Super+O        I J K L       Apps
+       │             │             │
+    backdrop       spatial        │
+    animations     movement       ├─ Brave → browser
+                                  ├─ Zed → code
+                                  ├─ Vesktop → communication
+                                  └─ Spotify → media
+```
+
+Y visualmente:
+
+```text
+Kitty
+ ├── opacity 0.92
+ └── Niri blur
+
+Overview
+ ├── native Niri
+ ├── controlled backdrop
+ └── native animations
+
+Spotify
+ └── media workspace
+```
+
+El resultado debe ser una configuración Niri modular, verificable y reversible, sin introducir dependencias nuevas ni ampliar el alcance hacia Hyprland, NVIDIA, DMS WorkspaceGraph, portales o gestión de sesión.
