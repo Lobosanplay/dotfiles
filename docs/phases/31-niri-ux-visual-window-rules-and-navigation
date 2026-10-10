@@ -1,7 +1,7 @@
 # Fase 31 — Niri UX Visual, Window Rules y Navegación
 
-**Estado:** Planificada
-**Objetivo:** Mejorar la experiencia de uso de Niri mediante efectos visuales controlados, reglas específicas de ventanas, navegación espacial IJKL y recuperación del Power Menu de DMS.
+**Estado:** En progreso
+**Objetivo:** Mejorar la experiencia de uso de Niri mediante efectos visuales controlados, reglas específicas de ventanas, navegación personalizada mediante IJKL y recuperación del Power Menu de DMS.
 
 ---
 
@@ -15,7 +15,7 @@ Los cambios estarán centrados exclusivamente en:
 * Blur y efectos visuales.
 * Transparencia de Kitty.
 * Window rules.
-* Organización automática de aplicaciones por workspace.
+* Asignación de Spotify y Vesktop al workspace `media`.
 * Navegación espacial mediante IJKL.
 * Power Menu de DMS.
 * Organización de la configuración de Niri.
@@ -40,8 +40,8 @@ Y:
 ```text
 Super+I → workspace superior
 Super+K → workspace inferior
-Super+J → monitor izquierdo
-Super+L → monitor derecho
+Super+J → columna izquierda
+Super+L → columna derecha
 ```
 
 Además:
@@ -50,12 +50,12 @@ Además:
 Super+X → DMS Power Menu
 ```
 
-Las aplicaciones deberán ser dirigidas automáticamente a sus workspaces correspondientes:
+El comportamiento de las aplicaciones se configurará de la siguiente manera:
 
 ```text
-Brave    → browser
-Zed      → code
-Vesktop  → communication
+Brave    → comportamiento predeterminado de Niri
+Zed      → comportamiento predeterminado de Niri
+Vesktop  → media
 Spotify  → media
 ```
 
@@ -170,16 +170,15 @@ No deberá contener reglas específicas de aplicaciones.
 
 Responsable exclusivamente de declarar los workspaces.
 
-Workspaces previstos:
+Workspaces existentes y conservados:
 
 ```text
 main
-code
-browser
-communication
-media
 gaming
+media
 ```
+
+No se crearán workspaces adicionales durante esta fase.
 
 No deberá contener:
 
@@ -197,8 +196,8 @@ Responsable exclusivamente de los controles del usuario.
 Debe contener:
 
 ```text
-Super+1..6
-Super+Ctrl+1..6
+Super+1..3
+Super+Ctrl+1..3
 
 Super+I
 Super+K
@@ -227,9 +226,9 @@ Responsable exclusivamente del comportamiento de las ventanas.
 Debe contener inicialmente:
 
 ```text
-Brave    → browser
-Zed      → code
-Vesktop  → communication
+Brave    → comportamiento predeterminado de Niri
+Zed      → comportamiento predeterminado de Niri
+Vesktop  → media
 Spotify  → media
 Kitty    → blur
 ```
@@ -479,29 +478,13 @@ Esto mantiene la responsabilidad correctamente separada.
 
 Crear reglas para las aplicaciones conocidas.
 
-## Brave
+## Brave y Zed
 
-```text
-app-id → browser
-```
+Brave (`brave-browser`) y Zed (`dev.zed.Zed`) conservan el comportamiento predeterminado de Niri. No se les asignan workspaces exclusivos.
 
-## Zed
+## Vesktop y Spotify
 
-```text
-app-id → code
-```
-
-## Vesktop
-
-```text
-app-id → communication
-```
-
-## Spotify
-
-```text
-app-id → media
-```
+Vesktop (`vesktop`) y Spotify (`spotify`) se asignan al workspace `media` en `HDMI-A-2`.
 
 ## Gaming
 
@@ -633,90 +616,61 @@ La decisión quedará fuera del cambio inicial si requiere ampliar el alcance.
 
 # 14. Navegación IJKL
 
-La navegación se adaptará a la filosofía espacial IJKL.
+La navegación se organiza en dos grupos: `Super` para columnas y workspaces,
+y `Alt` para cambiar el foco entre monitores.
 
-Mapa:
+| Atajo | Acción |
+|---|---|
+| `Super+H` | Enfocar columna izquierda |
+| `Super+J` | Enfocar columna izquierda |
+| `Super+L` | Enfocar columna derecha |
+| `Super+Left` | Enfocar columna izquierda |
+| `Super+Right` | Enfocar columna derecha |
+| `Super+I` | Enfocar workspace superior |
+| `Super+K` | Enfocar workspace inferior |
+| `Alt+J` | Enfocar monitor izquierdo |
+| `Alt+L` | Enfocar monitor derecho |
 
-```text
-             I
-             ↑
-             │
-       J ← workspace → L
-             │
-             ↓
-             K
-```
+`Super+J/L` ya no se utilizan para cambiar de monitor. Las combinaciones
+`Alt+J/L` asumen esa función. Los bindings para mover ventanas y columnas
+con modificadores adicionales se conservan.
 
-Bindings:
-
-```kdl
-Mod+I { focus-workspace-up; }
-Mod+K { focus-workspace-down; }
-Mod+J { focus-monitor-left; }
-Mod+L { focus-monitor-right; }
-```
-
----
-
-## 14.1 Conflictos existentes
-
-La configuración actual utiliza:
-
-```text
-Super+J → focus-window-down
-Super+K → focus-window-up
-Super+L → focus-column-right
-```
-
-Estos bindings deberán eliminarse o reemplazarse.
-
-No deben coexistir dos acciones para la misma combinación.
+Las asignaciones están presentes tanto en la configuración activa como
+en `niri/.config/niri/config.kdl`. Los cuatro atajos fueron probados
+funcionalmente y funcionan correctamente.
 
 ---
 
 # 15. Power Menu
 
-Recuperar el Power Menu de DMS mediante:
+El Power Menu de DMS se invoca mediante `Super+X`, definido en
+`niri/.config/niri/binds.kdl`:
 
 ```kdl
-Mod+X {
-    spawn "dms" "ipc" "call" "powermenu" "toggle";
-}
+Mod+X { spawn "dms" "ipc" "call" "powermenu" "toggle"; }
 ```
 
-## Objetivo
+Flujo esperado:
 
 ```text
-Super+X
-    ↓
-DMS IPC
-    ↓
-Power Menu
+Super+X → DMS IPC → Power Menu
 ```
 
-No se instalará ningún nuevo launcher ni power menu.
-
-Se reutilizará el componente existente.
+Se reutiliza el componente existente de DMS; no se instala otro launcher
+ni un Power Menu adicional.
 
 ---
 
 # 16. Overview binding
 
-Conservar:
+El Overview nativo de Niri se invoca con `Super+O`. El binding está definido
+en `niri/.config/niri/config.kdl`:
 
-```text
-Super+O
+```kdl
+Mod+O repeat=false { toggle-overview; }
 ```
 
-para el Overview nativo de Niri.
-
-No reemplazarlo por:
-
-```text
-dms overview
-```
-
-ni por otro sistema externo.
+No se sustituye por un comando de DMS ni por un sistema externo.
 
 ---
 
@@ -935,29 +889,31 @@ L → monitor derecho
 
 ## 24.3 Workspace selection
 
-Probar:
+Probar la selección de los tres workspaces configurados:
 
 ```text
 Super+1
 Super+2
 Super+3
-Super+4
-Super+5
-Super+6
 ```
 
 Verificar:
 
 ```text
 1 → main
-2 → code
-3 → browser
-4 → communication
-5 → media
-6 → gaming
+2 → gaming
+3 → media
 ```
 
-El orden exacto deberá coincidir con la configuración real de `workspaces.kdl`.
+Probar también el movimiento de columnas:
+
+```text
+Super+Ctrl+1 → main
+Super+Ctrl+2 → gaming
+Super+Ctrl+3 → media
+```
+
+El mapeo debe coincidir con `niri/.config/niri/binds.kdl` y los workspaces definidos en `niri/.config/niri/workspaces.kdl`. No se añaden workspaces adicionales en esta fase.
 
 ---
 
@@ -965,27 +921,15 @@ El orden exacto deberá coincidir con la configuración real de `workspaces.kdl`
 
 ## Brave
 
-Abrir Brave y comprobar:
-
-```text
-workspace = browser
-```
+Abrir Brave y comprobar que funciona con el comportamiento predeterminado de Niri, sin exigir una asignación a `browser`.
 
 ## Zed
 
-Abrir Zed y comprobar:
-
-```text
-workspace = code
-```
+Abrir Zed y comprobar que funciona con el comportamiento predeterminado de Niri, sin exigir una asignación a `code`.
 
 ## Vesktop
 
-Abrir Vesktop y comprobar:
-
-```text
-workspace = communication
-```
+Abrir Vesktop y comprobar que se asigna a `media` en `HDMI-A-2`.
 
 ## Spotify
 
@@ -1117,45 +1061,44 @@ Cualquier otro archivo deberá revisarse antes de continuar.
 
 # 30. Documentación
 
-Crear o actualizar:
+Este mismo archivo es el documento de referencia de la fase:
 
-```text
-docs/phase-31.md
-```
+`docs/phases/31-niri-ux-visual-window-rules-and-navigation`
 
-La documentación deberá registrar:
+Mantenerlo sincronizado con los archivos de configuración reales. No
+crear una referencia alternativa a `docs/phase-31.md`.
 
-### Implementado
+### Implementado y configurado
 
-* Overview.
-* Blur.
-* Kitty blur.
-* Kitty opacity.
-* Workspace assignments.
-* IJKL.
-* Power Menu.
-* Modularización de reglas.
+- Overview nativo mediante `Super+O`.
+- Blur global y efecto de fondo para Kitty.
+- Workspaces semánticos `main`, `gaming` y `media`.
+- Navegación mediante `IJKL`.
+- Power Menu de DMS mediante `Super+X`.
+- Reglas separadas en `rules.kdl` y bindings en sus archivos correspondientes.
+- Asignación de Spotify y Vesktop al workspace `media` en `HDMI-A-2`.
+- Ubicación predeterminada de Brave y Zed, sin asignaciones forzadas a workspaces adicionales.
 
-### Verificado
+### Verificaciones realizadas
 
-* `niri validate`.
-* Overview.
-* navegación.
-* workspace assignments.
-* Kitty.
-* Spotify.
-* Power Menu.
+- `niri validate -c ~/.config/niri/config.kdl`: validación correcta.
+- `git diff --check`: sin errores de formato en el diff.
+- Kitty: efecto de blur probado.
+- Navegación `Super+I/K`: comprobada previamente. Los nuevos atajos `Super+J/L` para columnas y `Alt+J/L` para monitores fueron probados y funcionan correctamente.
+- Power Menu: `Super+X` abre el menú de DMS.
+- Spotify y Vesktop: ubicación en el workspace `media`.
 
-### Limitaciones
+La validación sintáctica no sustituye las pruebas funcionales. No marcar
+una característica como verificada hasta comprobar su comportamiento real.
 
-Especialmente:
+### Verificaciones pendientes
 
-```text
-Overview backdrop alpha
-Spotify CSD
-```
-
-si alguna de ellas no puede resolverse con las capacidades reales de Niri 26.04.
+- Confirmar el comportamiento visual y funcional del Overview con `Super+O`.
+- Confirmar si existe una configuración explícita de opacidad para Kitty
+  antes de documentarla como implementada.
+- Revisar el comportamiento de `Overview backdrop alpha` y `Spotify CSD`
+  sin asumir que sean limitaciones definitivas de Niri.
+- Volver a validar la configuración después de cualquier cambio posterior.
 
 ---
 
@@ -1230,11 +1173,11 @@ La Fase 31 se considera completada cuando:
 
 ## Configuración
 
-* [ ] `config.kdl` sigue siendo válido.
-* [ ] `workspaces.kdl` contiene los workspaces previstos.
-* [ ] `binds.kdl` contiene los controles personales.
-* [ ] `rules.kdl` contiene las reglas de ventanas.
-* [ ] Los includes funcionan.
+* [x] `config.kdl` sigue siendo válido.
+* [x] `workspaces.kdl` contiene los workspaces previstos.
+* [x] `binds.kdl` contiene los controles personales.
+* [x] `rules.kdl` contiene las reglas de ventanas.
+* [x] Los includes funcionan.
 * [ ] No existen bindings duplicados.
 
 ## Overview
@@ -1246,34 +1189,36 @@ La Fase 31 se considera completada cuando:
 
 ## Blur
 
-* [ ] Blur global configurado.
-* [ ] Kitty solicita blur.
+* [x] Blur global configurado.
+* [x] Kitty solicita blur.
 * [ ] Kitty mantiene `background_opacity 0.92`.
 * [ ] No se fuerza transparencia sobre todas las aplicaciones.
 
 ## Workspaces
 
-* [ ] Brave → `browser`.
-* [ ] Zed → `code`.
-* [ ] Vesktop → `communication`.
-* [ ] Spotify → `media`.
+* [ ] Brave conserva el comportamiento predeterminado de Niri.
+* [ ] Zed conserva el comportamiento predeterminado de Niri.
+* [x] Vesktop → `media` en `HDMI-A-2`.
+* [x] Spotify → `media` en `HDMI-A-2`.
 
 ## Navegación
 
-* [ ] `Super+I` → workspace arriba.
-* [ ] `Super+K` → workspace abajo.
-* [ ] `Super+J` → monitor izquierdo.
-* [ ] `Super+L` → monitor derecho.
+* [x] `Super+I` → workspace arriba.
+* [x] `Super+K` → workspace abajo.
+* [x] `Super+J` → columna izquierda.
+* [x] `Super+L` → columna derecha.
+* [x] `Alt+J` → monitor izquierdo.
+* [x] `Alt+L` → monitor derecho.
 
 ## DMS
 
-* [ ] `Super+X` abre Power Menu.
-* [ ] No se modificó el sistema de DMS.
+* [x] `Super+X` abre Power Menu.
+* [x] No se modificó el sistema de DMS.
 
 ## Validación
 
-* [ ] `niri validate` pasa.
-* [ ] `git diff --check` pasa.
+* [x] `niri validate` pasa.
+* [x] `git diff --check` pasa.
 * [ ] Pruebas visuales completadas.
 * [ ] Pruebas funcionales completadas.
 * [ ] Diff revisado.
@@ -1458,38 +1403,39 @@ La Fase 31 deberá ejecutarse exactamente en este orden:
 
 # 38. Resultado final esperado
 
-Al finalizar la Fase 31, Niri deberá ofrecer una experiencia organizada de la siguiente manera:
+La Fase 31 debe mantener una configuración Niri modular, verificable y
+reversible, con esta distribución de navegación:
 
 ```text
-                    NIRI
-                     │
-       ┌─────────────┼─────────────┐
-       │             │             │
-   Overview       Navigation     Rules
-       │             │             │
-    Super+O        I J K L       Apps
-       │             │             │
-    backdrop       spatial        │
-    animations     movement       ├─ Brave → browser
-                                  ├─ Zed → code
-                                  ├─ Vesktop → communication
-                                  └─ Spotify → media
+Columnas y workspaces
+├── Super+H / Super+J → columna izquierda
+├── Super+L            → columna derecha
+├── Super+Left/Right   → columna izquierda/derecha
+├── Super+I/K          → workspace superior/inferior
+└── Monitores
+    ├── Alt+J → monitor izquierdo
+    └── Alt+L → monitor derecho
 ```
 
-Y visualmente:
+Reglas de ventanas:
 
 ```text
-Kitty
- ├── opacity 0.92
- └── Niri blur
-
-Overview
- ├── native Niri
- ├── controlled backdrop
- └── native animations
-
-Spotify
- └── media workspace
+Brave    → comportamiento predeterminado
+Zed      → comportamiento predeterminado
+Vesktop  → media en HDMI-A-2
+Spotify  → media en HDMI-A-2
 ```
 
-El resultado debe ser una configuración Niri modular, verificable y reversible, sin introducir dependencias nuevas ni ampliar el alcance hacia Hyprland, NVIDIA, DMS WorkspaceGraph, portales o gestión de sesión.
+Efectos visuales:
+
+```text
+Kitty    → Niri background blur (probado)
+Overview → binding configurado; prueba visual pendiente
+```
+
+Los nuevos atajos `Super+J/L` y `Alt+J/L` fueron probados funcionalmente y funcionan correctamente.
+No se deben considerar verificadas las pruebas visuales del Overview ni
+la opacidad de Kitty hasta comprobarlas directamente.
+
+La fase no debe introducir dependencias nuevas ni ampliar su alcance hacia
+Hyprland, NVIDIA, DMS WorkspaceGraph, portales o gestión de sesión.

@@ -13,6 +13,7 @@ binds {
     Mod+Space { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
     Mod+T { spawn "kitty"; }
     Mod+D { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+    Mod+X { spawn "dms" "ipc" "call" "powermenu" "toggle"; }
     Mod+Q repeat=false { close-window; }
 
     // Toggle between the current and previous workspace.
