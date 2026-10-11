@@ -33,3 +33,9 @@ window-rule {
         blur true
     }
 }
+
+// Place the DMS wallpaper inside Niri's overview backdrop.
+layer-rule {
+    match namespace="^quickshell$"
+    place-within-backdrop true
+}
