@@ -15,8 +15,8 @@
 -- also "window.class").
 
 local APPS = {
-    { class = "vesktop", workspace = 2, cmd = "flatpak run dev.vencord.Vesktop" },
-    { class = "spotify", workspace = 2, cmd = "flatpak run com.spotify.Client" },
+    { class = "vesktop", workspace = 2, cmd = "flatpak run dev.vencord.Vesktop --start-minimized" },
+    { class = "spotify", workspace = 2, cmd = "flatpak run --env=GTK_CSD=0 com.spotify.Client" },
 }
 
 -- Seconds after start during which windows of these classes are moved.
