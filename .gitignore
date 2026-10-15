@@ -9,6 +9,10 @@
 *.log
 *.tmp
 *.cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
 # Local machine-specific files
 local/
