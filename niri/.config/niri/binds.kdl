@@ -4,6 +4,9 @@ binds {
     Mod+2 { focus-workspace "gaming"; }
     Mod+3 { focus-workspace "media"; }
 
+    //WallpeperCarousel
+    Mod+p { spawn "dms" "ipc" "wallpaperCarousel" "toggle"; }
+
     // Move the focused column to a semantic workspace.
     Mod+Ctrl+1 { move-column-to-workspace "main"; }
     Mod+Ctrl+2 { move-column-to-workspace "gaming"; }
