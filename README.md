@@ -5,7 +5,7 @@ Personal Linux desktop configuration.
 ## Current setup
 
 - Fedora Linux
-- Hyprland
+- niri
 - Wayland
 - Intel integrated graphics
 - NVIDIA RTX 3050 Laptop GPU
@@ -16,11 +16,10 @@ Personal Linux desktop configuration.
 
 ```text
 dotfiles/
-├── hypr/
-│   └── .config/
-│       └── hypr/
 ├── scripts/
 │   └── bin/
 ├── wallpapers/
+├── niri/
 ├── .gitignore
 └── README.md
+```
