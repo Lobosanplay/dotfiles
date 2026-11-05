@@ -34,6 +34,12 @@ window-rule {
     }
 }
 
+window-rule {
+    match app-id="obsidian"
+    draw-border-with-background false
+    opacity 0.90
+}
+
 // Place the DMS wallpaper inside Niri's overview backdrop.
 layer-rule {
     match namespace="^quickshell$"
