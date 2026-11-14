@@ -77,5 +77,24 @@ cursor units or alter OpenCode.
 
 On the inspected machine, the active Niri `config.kdl` includes
 `dms/windowrules.kdl`, a DMS-generated file not present in the repository.
-Merge/preserve that include before replacing the active config; the automated
-installer intentionally does not resolve configuration-level merge conflicts.
+Its only rule was copied into the repository's `rules.kdl` (DMS/Quickshell
+windows remain fully opaque), so the generated include is no longer needed
+after linking.
+
+## Runtime synchronization
+
+Applied on the target machine:
+
+- `scripts/link-configs.sh` backed up preexisting regular files with the
+  `.before-dotfiles-link` suffix and linked all managed files. The existing
+  broken `~/.config/matugen` directory link was repointed to the flattened
+  repository path. Generated GTK `dank-colors.css` files and unrelated runtime
+  files were left in place.
+- `niri validate -c ~/.config/niri/config.kdl`: passed.
+- `systemctl --user daemon-reload`: completed; `dms.service` remains active and
+  reports `NeedDaemonReload=no`. DMS was not restarted.
+- `niri msg action load-config-file`: issued successfully.
+- All managed file symlinks resolve to this repository.
+
+Existing windows are not retroactively floated by a Niri rule reload. Newly
+opened windows and live GTK rendering still need interactive verification.
