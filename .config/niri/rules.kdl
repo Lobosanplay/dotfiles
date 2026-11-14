@@ -29,15 +29,35 @@ window-rule {
  */
 window-rule {
     match app-id="kitty"
+    open-floating true
+    default-column-width { fixed 1100; }
+    geometry-corner-radius 12
+    clip-to-geometry true
     background-effect {
         blur true
     }
 }
 
+/*
+ * Obsidian and Nautilus open as centered-size floating windows.
+ * OpenCode is a terminal TUI; when launched in Kitty it inherits Kitty's rule.
+ */
 window-rule {
-    match app-id="obsidian"
+    match app-id=r#"^(obsidian|com\.obsidian\.Obsidian)$"#
+    open-floating true
+    default-column-width { fixed 1100; }
+    geometry-corner-radius 12
+    clip-to-geometry true
     draw-border-with-background false
     opacity 0.90
+}
+
+window-rule {
+    match app-id="org.gnome.Nautilus"
+    open-floating true
+    default-column-width { fixed 1000; }
+    geometry-corner-radius 12
+    clip-to-geometry true
 }
 
 // Place the DMS wallpaper inside Niri's overview backdrop.

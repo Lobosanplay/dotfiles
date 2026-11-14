@@ -82,8 +82,8 @@ project does not replace or alter DMS's wallpaper renderer.
 
 ## State and versioning
 
-- Versioned source: `matugen/.config/matugen/config.toml` and
-  `matugen/.config/matugen/templates/dynamic-colors.json.tmpl`.
+- Versioned source: `.config/matugen/config.toml` and
+  `.config/matugen/templates/dynamic-colors.json.tmpl`.
 - Versioned validation: `themes/tokens/dynamic-colors.schema.json`,
   `themes/tokens/schema.json`, and `scripts/build-theme.py`.
 - Runtime candidate: `~/.cache/DankMaterialShell/dynamic-colors.pending.json`.
@@ -105,7 +105,7 @@ before Phase 19). Keep DMS's **Run User Templates** option enabled. The link
 was created with:
 
 ```bash
-ln -s ~/Documents/projects/dotfiles/matugen/.config/matugen ~/.config/matugen
+ln -s ~/Documents/projects/dotfiles/.config/matugen ~/.config/matugen
 ```
 
 Remove that link to disable this project's template. Do not replace an

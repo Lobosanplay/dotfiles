@@ -1,0 +1,20 @@
+@import url("dank-colors.css");
+
+/* Derive translucency from the active DMS/Matugen palette. */
+@define-color dotfiles_window_bg_color alpha(@window_bg_color, 0.84);
+@define-color dotfiles_view_bg_color alpha(@view_bg_color, 0.78);
+
+window,
+window.background,
+.background {
+  background-color: @dotfiles_window_bg_color;
+  border-radius: 12px;
+}
+
+view,
+textview,
+list,
+grid {
+  background-color: @dotfiles_view_bg_color;
+  border-radius: 10px;
+}

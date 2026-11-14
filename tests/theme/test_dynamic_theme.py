@@ -13,9 +13,9 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE = ROOT / "matugen/.config/matugen/templates/dynamic-colors.json.tmpl"
+TEMPLATE = ROOT / ".config/matugen/templates/dynamic-colors.json.tmpl"
 PROMOTER = ROOT / "scripts/promote_dynamic_theme.py"
-MATUGEN_CONFIG = ROOT / "matugen/.config/matugen/config.toml"
+MATUGEN_CONFIG = ROOT / ".config/matugen/config.toml"
 
 spec = importlib.util.spec_from_file_location("build_theme", ROOT / "scripts/build-theme.py")
 build_theme = importlib.util.module_from_spec(spec)
