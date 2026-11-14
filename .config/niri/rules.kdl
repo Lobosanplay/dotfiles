@@ -60,6 +60,12 @@ window-rule {
     clip-to-geometry true
 }
 
+// Keep DMS/Quickshell windows opaque (formerly supplied by DMS's generated include).
+window-rule {
+    match app-id="^(dev\\.duxlabs\\.shell|com\\.danklinux\\.dms)$"
+    opacity 1.0
+}
+
 // Place the DMS wallpaper inside Niri's overview backdrop.
 layer-rule {
     match namespace="^quickshell$"
