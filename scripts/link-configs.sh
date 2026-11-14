@@ -9,10 +9,21 @@ mkdir -p "$config_root"
 
 for app in "${apps[@]}"; do
     source_dir="$repo_root/.config/$app"
+    app_target="$config_root/$app"
     [[ -d "$source_dir" ]] || {
         printf 'Missing source config: %s\n' "$source_dir" >&2
         exit 1
     }
+
+    if [[ -L "$app_target" && ! -e "$app_target" ]]; then
+        ln -sfn "$source_dir" "$app_target"
+        printf 'Repaired dangling directory link %s -> %s\n' "$app_target" "$source_dir"
+        continue
+    fi
+    if [[ -L "$app_target" && "$(readlink -f "$app_target")" == "$source_dir" ]]; then
+        printf 'Already linked: %s\n' "$app_target"
+        continue
+    fi
 
     while IFS= read -r -d '' source; do
         relative="${source#"$repo_root/.config/"}"
