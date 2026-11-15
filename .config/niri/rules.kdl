@@ -25,39 +25,29 @@ window-rule {
 }
 
 /*
- * Kitty -> background blur
- */
-window-rule {
-    match app-id="kitty"
-    open-floating true
-    default-column-width { fixed 1100; }
-    geometry-corner-radius 12
-    clip-to-geometry true
-    background-effect {
-        blur true
-    }
-}
-
-/*
  * Obsidian and Nautilus open as centered-size floating windows.
  * OpenCode is a terminal TUI; when launched in Kitty it inherits Kitty's rule.
  */
 window-rule {
-    match app-id=r#"^(obsidian|com\.obsidian\.Obsidian)$"#
-    open-floating true
+    match app-id=r#"^(obsidian|com\.obsidian\.Obsidian|md\.obsidian\.Obsidian)$"#
     default-column-width { fixed 1100; }
     geometry-corner-radius 12
     clip-to-geometry true
     draw-border-with-background false
-    opacity 0.90
+    opacity 0.85
 }
 
 window-rule {
-    match app-id="org.gnome.Nautilus"
-    open-floating true
-    default-column-width { fixed 1000; }
-    geometry-corner-radius 12
+    match app-id="^org\\.gnome\\.Nautilus$"
+    opacity 0.95
     clip-to-geometry true
+    draw-border-with-background false
+}
+
+window-rule {
+    match app-id="kitty"
+    clip-to-geometry true
+    draw-border-with-background false
 }
 
 // Keep DMS/Quickshell windows opaque (formerly supplied by DMS's generated include).

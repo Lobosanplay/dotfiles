@@ -1,20 +1,33 @@
-@import url("dank-colors.css");
+@define-color window_bg_color rgba(20, 22, 31, 0.85);
+@define-color window_fg_color #cdd6f4;
+@define-color view_bg_color rgba(24, 26, 37, 0.75);
+@define-color view_fg_color #cdd6f4;
+@define-color headerbar_bg_color rgba(17, 19, 27, 0.90);
+@define-color headerbar_fg_color #cdd6f4;
+@define-color sidebar_bg_color rgba(15, 17, 24, 0.85);
+@define-color sidebar_fg_color #a6adc8;
+@define-color sidebar_backdrop_color rgba(15, 17, 24, 0.85);
 
-/* Derive translucency from the active DMS/Matugen palette. */
-@define-color dotfiles_window_bg_color alpha(@window_bg_color, 0.84);
-@define-color dotfiles_view_bg_color alpha(@view_bg_color, 0.78);
-
-window,
-window.background,
-.background {
-  background-color: @dotfiles_window_bg_color;
-  border-radius: 12px;
+window.nautilus-window {
+    border-radius: 12px;
 }
 
-view,
-textview,
-list,
-grid {
-  background-color: @dotfiles_view_bg_color;
-  border-radius: 10px;
+window.nautilus-window placessidebar,
+window.nautilus-window placessidebar:backdrop,
+window.nautilus-window .sidebar-pane,
+window.nautilus-window .sidebar-pane:backdrop,
+window.nautilus-window .navigation-sidebar,
+window.nautilus-window .navigation-sidebar:backdrop {
+    background-color: rgba(15, 17, 24, 0.85);
+    background-image: none;
+}
+
+window.nautilus-window placessidebar row:selected,
+window.nautilus-window placessidebar row:selected:backdrop,
+window.nautilus-window .navigation-sidebar row:selected,
+window.nautilus-window .navigation-sidebar row:selected:backdrop {
+    background-color: rgba(137, 180, 250, 0.25);
+    background-image: none;
+    color: #89b4fa;
+    border-radius: 8px;
 }
